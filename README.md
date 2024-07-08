@@ -1,4 +1,4 @@
-The c files execute the simulation, from a given initial condition
+The C files execute the simulation, from a given initial condition
 
 Minkowski.c - simulates on a minkowski spacetime with Euler integration
 
@@ -20,7 +20,7 @@ Rhistory.dat - The values of the radial space coordinate, r
 
 Not every time step is saved, nor every value of r. 
 This is to save time during the execution and the rendering of the animation,
-as well as reducing the file size of the output. How any values are saved can be
+as well as reducing the file size of the output. How many values are saved can be
 changed with the constants SAVE_RES and SAVE_ITERATION in the C file.
 
 

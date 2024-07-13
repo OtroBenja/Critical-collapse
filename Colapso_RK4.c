@@ -154,7 +154,7 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         l1[0] = 0.5*(-3*Epsilon[0]*Phi[0] +4*Epsilon[1]*Phi[1] -Epsilon[2]*Phi[2])/(deltaT*(r2[0]+0.01*deltaR));
         l1[nR-1] = 0.5*(3*Epsilon[nR-1]*Phi[nR-1] -4*Epsilon[nR-2]*Phi[nR-2] +Epsilon[nR-3]*Phi[nR-3])/(deltaT*r2[nR-1]);
         for(int ir=1;ir<nR-1;ir++){
-            k1[ir] = 0.5*(Gamma[ir-1]*Pi[ir+1] -Gamma[ir-1]*Pi[ir-1])/deltaT;
+            k1[ir] = 0.5*(Gamma[ir+1]*Pi[ir+1] -Gamma[ir-1]*Pi[ir-1])/deltaT;
             l1[ir] = 0.5*(Epsilon[ir+1]*Phi[ir+1] -Epsilon[ir-1]*Phi[ir-1])/(deltaT*r2[ir]);
             //k1[ir] = 0.5*(alpha[ir+1]*Pi[ir+1]/a[ir+1] -alpha[ir-1]*Pi[ir-1]/a[ir-1])/deltaT;
             //l1[ir] = 0.5*(r[ir+1]*r[ir+1]*alpha[ir+1]*Phi[ir+1]/a[ir+1] -r[ir-1]*r[ir-1]*alpha[ir-1]*Phi[ir-1]/a[ir-1])/(deltaT*r[ir]*r[ir]);

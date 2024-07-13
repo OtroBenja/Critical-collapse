@@ -72,8 +72,9 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
     double n4;
     double* Xhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
     double* Yhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
+    double* Fhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
     double* Rhistory = malloc(sizeof(double)*(nR/SAVE_RES));
-    double** hist = malloc(sizeof(double*)*3);
+    double** hist = malloc(sizeof(double*)*4);
     int save_count = save_iteration;
     int print_count = PRINT_RES;
 
@@ -129,8 +130,11 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         if(save_count == save_iteration){
             printf("iteration %d\n",i);
             for(int ir=0;ir<(nR/SAVE_RES);ir++){
-                Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]*Phi[ir*SAVE_RES]*sqrt(2*PI)/a[ir*SAVE_RES];
-                Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]* Pi[ir*SAVE_RES]*sqrt(2*PI)/a[ir*SAVE_RES];
+                //Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]*Phi[ir*SAVE_RES]*sqrt(2*PI)/a[ir*SAVE_RES];
+                //Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]* Pi[ir*SAVE_RES]*sqrt(2*PI)/a[ir*SAVE_RES];
+                Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = Phi[ir*SAVE_RES];
+                Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =  Pi[ir*SAVE_RES];
+                Fhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = phi[ir*SAVE_RES];
                 //Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = alpha[ir*SAVE_RES];
                 //Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = a[ir*SAVE_RES];
             }
@@ -154,7 +158,7 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         l1[0] = 0.5*(-3*Epsilon[0]*Phi[0] +4*Epsilon[1]*Phi[1] -Epsilon[2]*Phi[2])/(deltaT*(r2[0]+0.01*deltaR));
         l1[nR-1] = 0.5*(3*Epsilon[nR-1]*Phi[nR-1] -4*Epsilon[nR-2]*Phi[nR-2] +Epsilon[nR-3]*Phi[nR-3])/(deltaT*r2[nR-1]);
         for(int ir=1;ir<nR-1;ir++){
-            k1[ir] = 0.5*(Gamma[ir-1]*Pi[ir+1] -Gamma[ir-1]*Pi[ir-1])/deltaT;
+            k1[ir] = 0.5*(Gamma[ir+1]*Pi[ir+1] -Gamma[ir-1]*Pi[ir-1])/deltaT;
             l1[ir] = 0.5*(Epsilon[ir+1]*Phi[ir+1] -Epsilon[ir-1]*Phi[ir-1])/(deltaT*r2[ir]);
             //k1[ir] = 0.5*(alpha[ir+1]*Pi[ir+1]/a[ir+1] -alpha[ir-1]*Pi[ir-1]/a[ir-1])/deltaT;
             //l1[ir] = 0.5*(r[ir+1]*r[ir+1]*alpha[ir+1]*Phi[ir+1]/a[ir+1] -r[ir-1]*r[ir-1]*alpha[ir-1]*Phi[ir-1]/a[ir-1])/(deltaT*r[ir]*r[ir]);
@@ -204,8 +208,9 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
             //k4[ir] = 0.5*(alpha[ir+1]*(Pi[ir+1]+l3[ir+1]*deltaT)/a[ir+1] -alpha[ir-1]*(Pi[ir-1]+l3[ir-1]*deltaT)/a[ir-1])/deltaT;
             //l4[ir] = 0.5*(r[ir+1]*r[ir+1]*alpha[ir+1]*(Phi[ir+1]+k3[ir+1]*deltaT)/a[ir+1] -r[ir-1]*r[ir-1]*alpha[ir-1]*(Phi[ir-1]+k3[ir-1]*deltaT)/a[ir-1])/(deltaT*r[ir]*r[ir]);
         }
-        //Calculate Phi and Pi on next step
+        //Calculate phi, Phi and Pi on next step
         for(int ir=0;ir<nR;ir++){
+            phi[ir] += alpha[ir]*Pi[ir]*deltaT/a[ir]+phi[ir]; //phi is only calculated for visualization purposes
             Phi[ir] += (k1[ir]+2*k2[ir]+2*k3[ir]+k4[ir])*deltaT/6.;
             Pi[ir] += (l1[ir]+2*l2[ir]+2*l3[ir]+l4[ir])*deltaT/6.;
         }
@@ -216,6 +221,7 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
     hist[0] = Xhistory;
     hist[1] = Yhistory;
     hist[2] = Rhistory;
+    hist[3] = Fhistory;
     return hist;
 }
 
@@ -224,26 +230,32 @@ void print_data(double** hist,int print_iterations,int printR){
     FILE* x_data;
     FILE* y_data;
     FILE* r_data;
+    FILE* f_data;
 
     x_data = fopen("Xhistory.dat","w");
     y_data = fopen("Yhistory.dat","w");
     r_data = fopen("Rhistory.dat","w");
+    f_data = fopen("Fhistory.dat","w");
 
     //Print X and Y
     for(int i=0;i<print_iterations-1;i++){
         for(int ir=0;ir<(printR-1);ir++){
             fprintf(x_data,"%lf,",hist[0][i*printR+ir]);
             fprintf(y_data,"%lf,",hist[1][i*printR+ir]);
+            fprintf(f_data,"%lf,",hist[3][i*printR+ir]);
         }
         fprintf(x_data,"%lf\n",hist[0][i*printR+printR-1]);
         fprintf(y_data,"%lf\n",hist[1][i*printR+printR-1]);
+        fprintf(f_data,"%lf\n",hist[3][i*printR+printR-1]);
     }
     for(int ir=0;ir<(printR-1);ir++){
         fprintf(x_data,"%lf,",hist[0][(print_iterations-1)*printR+ir]);
         fprintf(y_data,"%lf,",hist[1][(print_iterations-1)*printR+ir]);
+        fprintf(f_data,"%lf,",hist[3][(print_iterations-1)*printR+ir]);
     }
     fprintf(x_data,"%lf",hist[0][print_iterations*printR-1]);
     fprintf(y_data,"%lf",hist[1][print_iterations*printR-1]);
+    fprintf(f_data,"%lf",hist[3][print_iterations*printR-1]);
 
     //Print R
     for(int ir=0;ir<(printR-1);ir++){
@@ -254,6 +266,7 @@ void print_data(double** hist,int print_iterations,int printR){
     fclose(x_data);
     fclose(y_data);
     fclose(r_data);
+    fclose(f_data);
 
 }
 

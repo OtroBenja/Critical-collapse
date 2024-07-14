@@ -51,10 +51,11 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
     double* Phi_t = malloc(sizeof(double)*nR);
     double* temp1 = malloc(sizeof(double)*nR);
     double* temp2 = malloc(sizeof(double)*nR);
+    double* Fhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
     double* Xhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
     double* Yhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
     double* Rhistory = malloc(sizeof(double)*(nR/SAVE_RES));
-    double** hist = malloc(sizeof(double*)*3);
+    double** hist = malloc(sizeof(double*)*4);
     int save_count = save_iteration;
 
     double a = 1.;
@@ -72,8 +73,11 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         if(save_count == save_iteration){
             printf("iteration %d\n",i);
             for(int ir=0;ir<(nR/SAVE_RES);ir++){
-                Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]*Phi[ir*SAVE_RES]*sqrt(2*PI)/a;
-                Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]* Pi[ir*SAVE_RES]*sqrt(2*PI)/a;
+                //Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]*Phi[ir*SAVE_RES]*sqrt(2*PI)/a;
+                //Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]* Pi[ir*SAVE_RES]*sqrt(2*PI)/a;
+                Fhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = phi[ir*SAVE_RES];
+                Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = Phi[ir*SAVE_RES];
+                Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =  Pi[ir*SAVE_RES];
             }
             save_count=0;
         }
@@ -118,6 +122,7 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
     hist[0] = Xhistory;
     hist[1] = Yhistory;
     hist[2] = Rhistory;
+    hist[3] = Fhistory;
     return hist;
 }
 
@@ -126,26 +131,32 @@ void print_data(double** hist,int print_iterations,int printR){
     FILE* x_data;
     FILE* y_data;
     FILE* r_data;
+    FILE* f_data;
 
     x_data = fopen("Xhistory.dat","w");
     y_data = fopen("Yhistory.dat","w");
     r_data = fopen("Rhistory.dat","w");
+    f_data = fopen("Fhistory.dat","w");
 
     //Print X and Y
     for(int i=0;i<print_iterations-1;i++){
         for(int ir=0;ir<(printR-1);ir++){
             fprintf(x_data,"%lf,",hist[0][i*printR+ir]);
             fprintf(y_data,"%lf,",hist[1][i*printR+ir]);
+            fprintf(f_data,"%lf,",hist[3][i*printR+ir]);
         }
         fprintf(x_data,"%lf\n",hist[0][i*printR+printR-1]);
         fprintf(y_data,"%lf\n",hist[1][i*printR+printR-1]);
+        fprintf(f_data,"%lf\n",hist[3][i*printR+printR-1]);
     }
     for(int ir=0;ir<(printR-1);ir++){
         fprintf(x_data,"%lf,",hist[0][(print_iterations-1)*printR+ir]);
         fprintf(y_data,"%lf,",hist[1][(print_iterations-1)*printR+ir]);
+        fprintf(f_data,"%lf,",hist[3][(print_iterations-1)*printR+ir]);
     }
     fprintf(x_data,"%lf",hist[0][print_iterations*printR-1]);
     fprintf(y_data,"%lf",hist[1][print_iterations*printR-1]);
+    fprintf(f_data,"%lf",hist[3][print_iterations*printR-1]);
 
     //Print R
     for(int ir=0;ir<(printR-1);ir++){
@@ -156,6 +167,7 @@ void print_data(double** hist,int print_iterations,int printR){
     fclose(x_data);
     fclose(y_data);
     fclose(r_data);
+    fclose(f_data);
 
 }
 

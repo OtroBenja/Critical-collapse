@@ -72,8 +72,9 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
     double n4;
     double* Xhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
     double* Yhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
+    double* Fhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
     double* Rhistory = malloc(sizeof(double)*(nR/SAVE_RES));
-    double** hist = malloc(sizeof(double*)*3);
+    double** hist = malloc(sizeof(double*)*4);
     int save_count = save_iteration;
     int print_count = PRINT_RES;
 
@@ -129,8 +130,11 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         if(save_count == save_iteration){
             printf("iteration %d\n",i);
             for(int ir=0;ir<(nR/SAVE_RES);ir++){
-                Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]*Phi[ir*SAVE_RES]*sqrt(2*PI)/a[ir*SAVE_RES];
-                Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]* Pi[ir*SAVE_RES]*sqrt(2*PI)/a[ir*SAVE_RES];
+                //Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]*Phi[ir*SAVE_RES]*sqrt(2*PI)/a[ir*SAVE_RES];
+                //Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]* Pi[ir*SAVE_RES]*sqrt(2*PI)/a[ir*SAVE_RES];
+                Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = Phi[ir*SAVE_RES];
+                Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =  Pi[ir*SAVE_RES];
+                Fhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = phi[ir*SAVE_RES];
                 //Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = alpha[ir*SAVE_RES];
                 //Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = a[ir*SAVE_RES];
             }
@@ -145,29 +149,21 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
             r2[ir] = r[ir]*r[ir];
         }
         //calculate k1 and l1
-        //k1[0] = 0.;
-        //k1[nR-1] = 0.;
-        //l1[0] = 0.;
-        //l1[nR-1] = 0.;
         k1[0] = 0.5*(-3*Gamma[0]*Pi[0] +4*Gamma[1]*Pi[1] -Gamma[2]*Pi[2])/deltaT;
-        k1[nR-1] = 0.5*(3*Gamma[nR-1]*Pi[nR-1] -4*Gamma[nR-2]*Pi[nR-2] +Gamma[nR-3]*Pi[nR-3])/deltaT;
+        k1[nR-1] = -0.5*(3*Phi[nR-1] -4*Phi[nR-2] +Phi[nR-3])/deltaT;
         l1[0] = 0.5*(-3*Epsilon[0]*Phi[0] +4*Epsilon[1]*Phi[1] -Epsilon[2]*Phi[2])/(deltaT*(r2[0]+0.01*deltaR));
-        l1[nR-1] = 0.5*(3*Epsilon[nR-1]*Phi[nR-1] -4*Epsilon[nR-2]*Phi[nR-2] +Epsilon[nR-3]*Phi[nR-3])/(deltaT*r2[nR-1]);
+        l1[nR-1] = -0.5*(3*Epsilon[nR-1]*Gamma[nR-1]*Pi[nR-1] -4*Epsilon[nR-2]*Gamma[nR-2]*Pi[nR-2] +Epsilon[nR-3]*Gamma[nR-3]*Pi[nR-3])/(deltaT*r2[nR-1]);
         for(int ir=1;ir<nR-1;ir++){
-            k1[ir] = 0.5*(Gamma[ir-1]*Pi[ir+1] -Gamma[ir-1]*Pi[ir-1])/deltaT;
+            k1[ir] = 0.5*(Gamma[ir+1]*Pi[ir+1] -Gamma[ir-1]*Pi[ir-1])/deltaT;
             l1[ir] = 0.5*(Epsilon[ir+1]*Phi[ir+1] -Epsilon[ir-1]*Phi[ir-1])/(deltaT*r2[ir]);
             //k1[ir] = 0.5*(alpha[ir+1]*Pi[ir+1]/a[ir+1] -alpha[ir-1]*Pi[ir-1]/a[ir-1])/deltaT;
             //l1[ir] = 0.5*(r[ir+1]*r[ir+1]*alpha[ir+1]*Phi[ir+1]/a[ir+1] -r[ir-1]*r[ir-1]*alpha[ir-1]*Phi[ir-1]/a[ir-1])/(deltaT*r[ir]*r[ir]);
         }
         //calculate k2 and l2
-        //k2[0] = 0.;
-        //k2[nR-1] = 0.;
-        //l2[0] = 0.;
-        //l2[nR-1] = 0.;
         k2[0] = 0.5*(-3*Gamma[0]*(Pi[0]+0.5*l1[0]*deltaT) +4*Gamma[1]*(Pi[1]+0.5*l1[1]*deltaT) -Gamma[2]*(Pi[2]+0.5*l1[2]*deltaT))/deltaT;
-        k2[nR-1] = 0.5*(3*Gamma[nR-1]*(Pi[nR-1]+0.5*l1[nR-1]*deltaT) -4*Gamma[nR-2]*(Pi[nR-2]+0.5*l1[nR-2]*deltaT) +Gamma[nR-3]*(Pi[nR-3]+0.5*l1[nR-3]*deltaT))/deltaT;
+        k2[nR-1] = -0.5*(3*(Phi[nR-1]+0.5*k1[nR-1]*deltaT) -4*(Phi[nR-2]+0.5*k1[nR-2]*deltaT) +(Phi[nR-3]+0.5*k1[nR-3]*deltaT))/deltaT;
         l2[0] = 0.5*(-3*Epsilon[0]*(Phi[0]+0.5*k1[0]*deltaT) +4*Epsilon[1]*(Phi[1]+0.5*k1[1]*deltaT) -Epsilon[2]*(Phi[2]+0.5*k1[2]*deltaT))/(deltaT*(r2[0]+0.01*deltaR));
-        l2[nR-1] = 0.5*(3*Epsilon[nR-1]*(Phi[nR-1]+0.5*k1[nR-1]*deltaT) -4*Epsilon[nR-2]*(Phi[nR-2]+0.5*k1[nR-2]*deltaT) +Epsilon[nR-3]*(Phi[nR-3]+0.5*k1[nR-3]*deltaT))/(deltaT*r2[nR-1]);
+        l2[nR-1] = -0.5*(3*Epsilon[nR-1]*Gamma[nR-1]*(Pi[nR-1]+0.5*l1[nR-1]*deltaT) -4*Epsilon[nR-2]*Gamma[nR-2]*(Pi[nR-2]+0.5*l1[nR-2]*deltaT) +Epsilon[nR-3]*Gamma[nR-3]*(Pi[nR-3]+0.5*l1[nR-3]*deltaT))/(deltaT*r2[nR-1]);
         for(int ir=1;ir<nR-1;ir++){
             k2[ir] = 0.5*(Gamma[ir+1]*(Pi[ir+1]+0.5*l1[ir+1]*deltaT) -Gamma[ir-1]*(Pi[ir-1]+0.5*l1[ir-1]*deltaT))/deltaT;
             l2[ir] = 0.5*(Epsilon[ir+1]*(Phi[ir+1]+0.5*k1[ir+1]*deltaT) -Epsilon[ir-1]*(Phi[ir-1]+0.5*k1[ir-1]*deltaT))/(deltaT*r2[ir]);
@@ -175,14 +171,10 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
             //l2[ir] = 0.5*(r[ir+1]*r[ir+1]*alpha[ir+1]*(Phi[ir+1]+0.5*k1[ir+1]*deltaT)/a[ir+1] -r[ir-1]*r[ir-1]*alpha[ir-1]*(Phi[ir-1]+0.5*k1[ir-1]*deltaT)/a[ir-1])/(deltaT*r[ir]*r[ir]);
         }
         //calculate k3 and l3
-        //k3[0] = 0.;
-        //k3[nR-1] = 0.;
-        //l3[0] = 0.;
-        //l3[nR-1] = 0.;
         k3[0] = 0.5*(-3*Gamma[0]*(Pi[0]+0.5*l2[0]*deltaT) +4*Gamma[1]*(Pi[1]+0.5*l2[1]*deltaT) -Gamma[2]*(Pi[2]+0.5*l2[2]*deltaT))/deltaT;
-        k3[nR-1] = 0.5*(3*Gamma[nR-1]*(Pi[nR-1]+0.5*l2[nR-1]*deltaT) -4*Gamma[nR-2]*(Pi[nR-2]+0.5*l2[nR-2]*deltaT) +Gamma[nR-2]*(Pi[nR-3]+0.5*l2[nR-3]*deltaT))/deltaT;
+        k3[nR-1] = -0.5*(3*(Phi[nR-1]+0.5*k2[nR-1]*deltaT) -4*(Phi[nR-2]+0.5*k2[nR-2]*deltaT) +(Phi[nR-3]+0.5*k2[nR-3]*deltaT))/deltaT;
         l3[0] = 0.5*(-3*Epsilon[0]*(Phi[0]+0.5*k2[0]*deltaT) +4*Epsilon[1]*(Phi[1]+0.5*k2[1]*deltaT) -Epsilon[2]*(Phi[2]+0.5*k2[2]*deltaT))/(deltaT*(r2[0]+0.01*deltaR));
-        l3[nR-1] = 0.5*(3*Epsilon[nR-1]*(Phi[nR-1]+0.5*k2[nR-1]*deltaT) -4*Epsilon[nR-2]*(Phi[nR-2]+0.5*k2[nR-2]*deltaT) +Epsilon[nR-3]*(Phi[nR-3]+0.5*k2[nR-3]*deltaT))/(deltaT*r2[nR-1]);
+        l3[nR-1] = -0.5*(3*Epsilon[nR-1]*Gamma[nR-1]*(Pi[nR-1]+0.5*l2[nR-1]*deltaT) -4*Epsilon[nR-2]*Gamma[nR-2]*(Pi[nR-2]+0.5*l2[nR-2]*deltaT) +Epsilon[nR-3]*Gamma[nR-3]*(Pi[nR-3]+0.5*l2[nR-3]*deltaT))/(deltaT*r2[nR-1]);
         for(int ir=1;ir<nR-1;ir++){
             k3[ir] = 0.5*(Gamma[ir+1]*(Pi[ir+1]+0.5*l2[ir+1]*deltaT) -Gamma[ir-1]*(Pi[ir-1]+0.5*l2[ir-1]*deltaT))/deltaT;
             l3[ir] = 0.5*(Epsilon[ir+1]*(Phi[ir+1]+0.5*k2[ir+1]*deltaT) -Epsilon[ir-1]*(Phi[ir-1]+0.5*k2[ir-1]*deltaT))/(deltaT*r2[ir]);
@@ -190,22 +182,19 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
             //l3[ir] = 0.5*(r[ir+1]*r[ir+1]*alpha[ir+1]*(Phi[ir+1]+0.5*k2[ir+1]*deltaT)/a[ir+1] -r[ir-1]*r[ir-1]*alpha[ir-1]*(Phi[ir-1]+0.5*k2[ir-1]*deltaT)/a[ir-1])/(deltaT*r[ir]*r[ir]);
         }
         //calculate k4 and l4
-        //k4[0] = 0.;
-        //k4[nR-1] = 0.;
-        //l4[0] = 0.;
-        //l4[nR-1] = 0.;
         k4[0] = 0.5*(-3*Gamma[0]*(Pi[0]+l3[0]*deltaT) +4*Gamma[1]*(Pi[1]+l3[1]*deltaT) -Gamma[2]*(Pi[2]+l3[2]*deltaT))/deltaT;
-        k4[nR-1] = 0.5*(3*Gamma[nR-1]*(Pi[nR-1]+l3[nR-1]*deltaT) -4*Gamma[nR-2]*(Pi[nR-2]+l3[nR-2]*deltaT) +Gamma[nR-3]*(Pi[nR-3]+l3[nR-3]*deltaT))/deltaT;
+        k4[nR-1] = -0.5*(3*(Phi[nR-1]+k3[nR-1]*deltaT) -4*(Phi[nR-2]+k3[nR-2]*deltaT) +(Phi[nR-3]+k3[nR-3]*deltaT))/deltaT;
         l4[0] = 0.5*(-3*Epsilon[0]*(Phi[0]+k3[0]*deltaT) +4*Epsilon[1]*(Phi[1]+k3[1]*deltaT) -Epsilon[2]*(Phi[2]+k3[2]*deltaT))/(deltaT*(r[0]+0.01*deltaR));
-        l4[nR-1] = 0.5*(3*Epsilon[nR-1]*(Phi[nR-1]+k3[nR-1]*deltaT) -4*Epsilon[nR-2]*(Phi[nR-2]+k3[nR-2]*deltaT) +Epsilon[nR-3]*(Phi[nR-3]+k3[nR-3]*deltaT))/(deltaT*r2[nR-1]);
+        l4[nR-1] = -0.5*(3*Epsilon[nR-1]*Gamma[nR-1]*(Pi[nR-1]+l3[nR-1]*deltaT) -4*Epsilon[nR-2]*Gamma[nR-2]*(Pi[nR-2]+l3[nR-2]*deltaT) +Epsilon[nR-3]*Gamma[nR-3]*(Pi[nR-3]+l3[nR-3]*deltaT))/(deltaT*r2[nR-1]);
         for(int ir=1;ir<nR-1;ir++){
             k4[ir] = 0.5*(Gamma[ir+1]*(Pi[ir+1]+l3[ir+1]*deltaT) -Gamma[ir-1]*(Pi[ir-1]+l3[ir-1]*deltaT))/deltaT;
             l4[ir] = 0.5*(Epsilon[ir+1]*(Phi[ir+1]+k3[ir+1]*deltaT) -Epsilon[ir-1]*(Phi[ir-1]+k3[ir-1]*deltaT))/(deltaT*r2[ir]);
             //k4[ir] = 0.5*(alpha[ir+1]*(Pi[ir+1]+l3[ir+1]*deltaT)/a[ir+1] -alpha[ir-1]*(Pi[ir-1]+l3[ir-1]*deltaT)/a[ir-1])/deltaT;
             //l4[ir] = 0.5*(r[ir+1]*r[ir+1]*alpha[ir+1]*(Phi[ir+1]+k3[ir+1]*deltaT)/a[ir+1] -r[ir-1]*r[ir-1]*alpha[ir-1]*(Phi[ir-1]+k3[ir-1]*deltaT)/a[ir-1])/(deltaT*r[ir]*r[ir]);
         }
-        //Calculate Phi and Pi on next step
+        //Calculate phi, Phi and Pi on next step
         for(int ir=0;ir<nR;ir++){
+            phi[ir] += alpha[ir]*Pi[ir]*deltaT/a[ir]; //phi is only calculated for visualization purposes
             Phi[ir] += (k1[ir]+2*k2[ir]+2*k3[ir]+k4[ir])*deltaT/6.;
             Pi[ir] += (l1[ir]+2*l2[ir]+2*l3[ir]+l4[ir])*deltaT/6.;
             phi[ir] += alpha[ir]*Pi[ir]*deltaT/a[ir]; //phi is only calculated for visualization purposes
@@ -217,6 +206,7 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
     hist[0] = Xhistory;
     hist[1] = Yhistory;
     hist[2] = Rhistory;
+    hist[3] = Fhistory;
     return hist;
 }
 
@@ -225,26 +215,32 @@ void print_data(double** hist,int print_iterations,int printR){
     FILE* x_data;
     FILE* y_data;
     FILE* r_data;
+    FILE* f_data;
 
     x_data = fopen("Xhistory.dat","w");
     y_data = fopen("Yhistory.dat","w");
     r_data = fopen("Rhistory.dat","w");
+    f_data = fopen("Fhistory.dat","w");
 
     //Print X and Y
     for(int i=0;i<print_iterations-1;i++){
         for(int ir=0;ir<(printR-1);ir++){
             fprintf(x_data,"%lf,",hist[0][i*printR+ir]);
             fprintf(y_data,"%lf,",hist[1][i*printR+ir]);
+            fprintf(f_data,"%lf,",hist[3][i*printR+ir]);
         }
         fprintf(x_data,"%lf\n",hist[0][i*printR+printR-1]);
         fprintf(y_data,"%lf\n",hist[1][i*printR+printR-1]);
+        fprintf(f_data,"%lf\n",hist[3][i*printR+printR-1]);
     }
     for(int ir=0;ir<(printR-1);ir++){
         fprintf(x_data,"%lf,",hist[0][(print_iterations-1)*printR+ir]);
         fprintf(y_data,"%lf,",hist[1][(print_iterations-1)*printR+ir]);
+        fprintf(f_data,"%lf,",hist[3][(print_iterations-1)*printR+ir]);
     }
     fprintf(x_data,"%lf",hist[0][print_iterations*printR-1]);
     fprintf(y_data,"%lf",hist[1][print_iterations*printR-1]);
+    fprintf(f_data,"%lf",hist[3][print_iterations*printR-1]);
 
     //Print R
     for(int ir=0;ir<(printR-1);ir++){
@@ -255,11 +251,12 @@ void print_data(double** hist,int print_iterations,int printR){
     fclose(x_data);
     fclose(y_data);
     fclose(r_data);
+    fclose(f_data);
 
 }
 
 
-void main(){
+int main(){
     double** initial_conditions;
     double** hist;
     double* r;

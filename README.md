@@ -6,13 +6,16 @@ MinkowskiRK4.c - simulates on a minkowski spacetime with RK4 integration
 
 RK4.c - simulates on the spacetime given by Choptuik (1993) with RK4 integration
 
+Both RK4 methods have and outgoing wave condition on the outer frontier r=50
 
 
-Every simulation outputs 3 files:
+Every simulation outputs 4 files:
 
-Xhistory.dat - A history of the scalar field X, a transformation of Φ
+Fhistory.dat - A history of the scalar field φ
 
-Yhistory.dat - A history of the scalar field Y, a transformation of Π
+Xhistory.dat - A history of the scalar field Φ, the derivative dφ/dr
+
+Yhistory.dat - A history of the scalar field Π, the derivative (a/alpha)*(dφ/dt)
 
 Rhistory.dat - The values of the radial space coordinate, r
 

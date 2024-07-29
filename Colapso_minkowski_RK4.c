@@ -123,7 +123,6 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         }
         //Calculate phi, Phi and Pi on next step
         for(int ir=0;ir<nR;ir++){
-            phi[ir] += Pi[ir]*deltaT; //phi is only calculated for visualization purposes
             Phi[ir] += (k1[ir]+2*k2[ir]+2*k3[ir]+k4[ir])*deltaT/6.;
             Pi[ir] += (l1[ir]+2*l2[ir]+2*l3[ir]+l4[ir])*deltaT/6.;
             phi[ir] += Pi[ir]*deltaT+phi[ir]; //phi is only calculated for visualization purposes

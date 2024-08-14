@@ -4,7 +4,7 @@
 
 #define SAVE_RES 100
 #define SAVE_ITERATION 100
-#define ITERATIONS 100000
+#define ITERATIONS 20000
 #define PI 3.1415
 
 
@@ -47,10 +47,6 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
 
     int nR = maxR/deltaR;
     double deltaT=deltaR/5.;
-    double* Pi_t = malloc(sizeof(double)*nR);
-    double* Phi_t = malloc(sizeof(double)*nR);
-    double* temp1 = malloc(sizeof(double)*nR);
-    double* temp2 = malloc(sizeof(double)*nR);
     double* k1 = malloc(sizeof(double)*nR);
     double* l1 = malloc(sizeof(double)*nR);
     double* k2 = malloc(sizeof(double)*nR);
@@ -70,7 +66,6 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
     double alpha = 1.;
 
     for(int i=0;i<iterations;i++){
-        //Solve a and alpha with known values of PHI and PI
         //Save values of X and Y
         if(save_count == save_iteration){
             printf("iteration %d\n",i);
@@ -87,36 +82,36 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         //Advance Pi and Phi using RK4
         //calculate k1 and l1
         k1[0] = 0.5*(-3*Pi[0] +4*Pi[1] -Pi[2])/deltaT;
-        k1[nR-1] = -0.5*(3*Phi[nR-1] -4*Phi[nR-2] +Phi[nR-3])/deltaT;
+        k1[nR-1] = 0;
         l1[0] = 0.5*(-3*r[0]*r[0]*Phi[0] +4*r[1]*r[1]*Phi[1] -r[2]*r[2]*Phi[2])/(deltaT*(r[0]*r[0]+0.01*deltaR));
-        l1[nR-1] = -0.5*(3*r[nR-1]*r[nR-1]*Pi[nR-1] -4*r[nR-2]*r[nR-2]*Pi[nR-2] +r[nR-3]*r[nR-3]*Pi[nR-3])/(deltaT*r[nR-1]*r[nR-1]);
+        l1[nR-1] = 0;
         for(int ir=1;ir<nR-1;ir++){
             k1[ir] = 0.5*(alpha*Pi[ir+1]/a -alpha*Pi[ir-1]/a)/deltaT;
             l1[ir] = 0.5*(r[ir+1]*r[ir+1]*alpha*Phi[ir+1]/a -r[ir-1]*r[ir-1]*alpha*Phi[ir-1]/a)/(deltaT*r[ir]*r[ir]);
         }
         //calculate k2 and l2
         k2[0] = 0.5*(-3*(Pi[0]+0.5*l1[0]*deltaT) +4*(Pi[1]+0.5*l1[1]*deltaT) -(Pi[2]+0.5*l1[2]*deltaT))/deltaT;
-        k2[nR-1] = -0.5*(3*(Phi[nR-1]+0.5*k1[nR-1]*deltaT) -4*(Phi[nR-2]+0.5*k1[nR-2]*deltaT) +(Phi[nR-3]+0.5*k1[nR-3]*deltaT))/deltaT;
+        k2[nR-1] = 0;
         l2[0] = 0.5*(-3*r[0]*r[0]*(Phi[0]+0.5*k1[0]*deltaT) +4*r[1]*r[1]*(Phi[1]+0.5*k1[1]*deltaT) -r[2]*r[2]*(Phi[2]+0.5*k1[2]*deltaT))/(deltaT*(r[0]*r[0]+0.01*deltaR));
-        l2[nR-1] = -0.5*(3*r[nR-1]*r[nR-1]*(Pi[nR-1]+0.5*l1[nR-1]*deltaT) -4*r[nR-2]*r[nR-2]*(Pi[nR-2]+0.5*l1[nR-2]*deltaT) +r[nR-3]*r[nR-3]*(Pi[nR-3]+0.5*l1[nR-3]*deltaT))/(deltaT*r[nR-1]*r[nR-1]);
+        l2[nR-1] = 0;
         for(int ir=1;ir<nR-1;ir++){
             k2[ir] = 0.5*(alpha*(Pi[ir+1]+0.5*l1[ir+1]*deltaT)/a -alpha*(Pi[ir-1]+0.5*l1[ir-1]*deltaT)/a)/deltaT;
             l2[ir] = 0.5*(r[ir+1]*r[ir+1]*alpha*(Phi[ir+1]+0.5*k1[ir+1]*deltaT)/a -r[ir-1]*r[ir-1]*alpha*(Phi[ir-1]+0.5*k1[ir-1]*deltaT)/a)/(deltaT*r[ir]*r[ir]);
         }
         //calculate k3 and l3
-        k2[0] = 0.5*(-3*(Pi[0]+0.5*l2[0]*deltaT) +4*(Pi[1]+0.5*l2[1]*deltaT) -(Pi[2]+0.5*l2[2]*deltaT))/deltaT;
-        k2[nR-1] = -0.5*(3*(Phi[nR-1]+0.5*k2[nR-1]*deltaT) -4*(Phi[nR-2]+0.5*k2[nR-2]*deltaT) +(Phi[nR-3]+0.5*k2[nR-3]*deltaT))/deltaT;
-        l2[0] = 0.5*(-3*r[0]*r[0]*(Phi[0]+0.5*k2[0]*deltaT) +4*r[1]*r[1]*(Phi[1]+0.5*k2[1]*deltaT) -r[2]*r[2]*(Phi[2]+0.5*k2[2]*deltaT))/(deltaT*(r[0]*r[0]+0.01*deltaR));
-        l2[nR-1] = -0.5*(3*r[nR-1]*r[nR-1]*(Pi[nR-1]+0.5*l2[nR-1]*deltaT) -4*r[nR-2]*r[nR-2]*(Pi[nR-2]+0.5*l2[nR-2]*deltaT) +r[nR-3]*r[nR-3]*(Pi[nR-3]+0.5*l2[nR-3]*deltaT))/(deltaT*r[nR-1]*r[nR-1]);
+        k3[0] = 0.5*(-3*(Pi[0]+0.5*l2[0]*deltaT) +4*(Pi[1]+0.5*l2[1]*deltaT) -(Pi[2]+0.5*l2[2]*deltaT))/deltaT;
+        k3[nR-1] = 0;
+        l3[0] = 0.5*(-3*r[0]*r[0]*(Phi[0]+0.5*k2[0]*deltaT) +4*r[1]*r[1]*(Phi[1]+0.5*k2[1]*deltaT) -r[2]*r[2]*(Phi[2]+0.5*k2[2]*deltaT))/(deltaT*(r[0]*r[0]+0.01*deltaR));
+        l3[nR-1] = 0;
         for(int ir=1;ir<nR-1;ir++){
             k3[ir] = 0.5*(alpha*(Pi[ir+1]+0.5*l2[ir+1]*deltaT)/a -alpha*(Pi[ir-1]+0.5*l2[ir-1]*deltaT)/a)/deltaT;
             l3[ir] = 0.5*(r[ir+1]*r[ir+1]*alpha*(Phi[ir+1]+0.5*k2[ir+1]*deltaT)/a -r[ir-1]*r[ir-1]*alpha*(Phi[ir-1]+0.5*k2[ir-1]*deltaT)/a)/(deltaT*r[ir]*r[ir]);
         }
         //calculate k4 and l4
         k4[0] = 0.5*(-3*(Pi[0]+l3[0]*deltaT) +4*(Pi[1]+l3[1]*deltaT) -(Pi[2]+l3[2]*deltaT))/deltaT;
-        k4[nR-1] = -0.5*(3*(Phi[nR-1]+k3[nR-1]*deltaT) -4*(Phi[nR-2]+k3[nR-2]*deltaT) +(Phi[nR-3]+k3[nR-3]*deltaT))/deltaT;
+        k4[nR-1] = 0;
         l4[0] = 0.5*(-3*r[0]*r[0]*(Phi[0]+k3[0]*deltaT) +4*r[1]*r[1]*(Phi[1]+k3[1]*deltaT) -r[2]*r[2]*(Phi[2]+k3[2]*deltaT))/(deltaT*(r[0]*r[0]+0.01*deltaR));
-        l4[nR-1] = -0.5*(3*r[nR-1]*r[nR-1]*(Pi[nR-1]+l3[nR-1]*deltaT) -4*r[nR-2]*r[nR-2]*(Pi[nR-2]+l3[nR-2]*deltaT) +r[nR-3]*r[nR-3]*(Pi[nR-3]+l3[nR-3]*deltaT))/(deltaT*r[nR-1]*r[nR-1]);
+        l4[nR-1] = 0;
         for(int ir=1;ir<nR-1;ir++){
             k4[ir] = 0.5*(alpha*(Pi[ir+1]+l3[ir+1]*deltaT)/a -alpha*(Pi[ir-1]+l3[ir-1]*deltaT)/a)/deltaT;
             l4[ir] = 0.5*(r[ir+1]*r[ir+1]*alpha*(Phi[ir+1]+k3[ir+1]*deltaT)/a -r[ir-1]*r[ir-1]*alpha*(Phi[ir-1]+k3[ir-1]*deltaT)/a)/(deltaT*r[ir]*r[ir]);
@@ -124,8 +119,8 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         //Calculate phi, Phi and Pi on next step
         for(int ir=0;ir<nR;ir++){
             Phi[ir] += (k1[ir]+2*k2[ir]+2*k3[ir]+k4[ir])*deltaT/6.;
-            Pi[ir] += (l1[ir]+2*l2[ir]+2*l3[ir]+l4[ir])*deltaT/6.;
-            phi[ir] += Pi[ir]*deltaT+phi[ir]; //phi is only calculated for visualization purposes
+            Pi[ir]  += (l1[ir]+2*l2[ir]+2*l3[ir]+l4[ir])*deltaT/6.;
+            phi[ir] += Pi[ir]*deltaT; //phi is only calculated for visualization purposes
         }
     }
     for(int ir=0;ir<(nR/SAVE_RES);ir++){
@@ -193,12 +188,12 @@ void main(){
     double* Pi;
     
     //Define initial conditions
-    float p0 = 0.001;
-    float r0 = 20.;
-    float d = 3.;
-    float q = 2.;
-    float deltaR = 0.001;
-    int maxR = 50;
+    double p0 = 0.001;
+    double r0 = 20.;
+    double d = 3.;
+    double q = 2.;
+    double deltaR = 0.001;
+    int maxR = 80;
     initial_conditions = initialize_field(p0,r0,d,q,deltaR,maxR);
     r = initial_conditions[0];
     phi = initial_conditions[1];

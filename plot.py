@@ -39,8 +39,10 @@ Fplot = ax[0].plot(R,fdata_raw[0])[0]
 Xplot = ax[1].plot(R,xdata_raw[0])[0]
 Yplot = ax[2].plot(R,ydata_raw[0])[0]
 ax[1].set_ylim(-ax[0].get_ylim()[1],ax[0].get_ylim()[1])
-ax[0].set_ylim(ax[0].get_ylim())
-ax[2].set_ylim(ax[0].get_ylim())
+ax[2].set_ylim( ax[0].get_ylim())
+#Make limits for phi plot based on maximum initial difference from external point
+deltaLim = max(fdata_raw[0][-1] -ax[0].get_ylim()[0], ax[0].get_ylim()[1] -fdata_raw[0][-1])
+ax[0].set_ylim(fdata_raw[0][-1]-deltaLim,fdata_raw[0][-1]+deltaLim)
 ax[0].set_title('$\phi$')
 ax[1].set_title('$\Phi$')
 ax[2].set_title('$\Pi$')

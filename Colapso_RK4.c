@@ -10,6 +10,7 @@ int omp_get_max_threads(){return 1;}
 int omp_get_thread_num(){return 1;}
 #endif
 
+#define MINKOWSKI 0
 #define SAVE_RES 500
 #define SAVE_ITERATION 100
 #define ITERATIONS 20000
@@ -17,7 +18,11 @@ int omp_get_thread_num(){return 1;}
 
 
 
-double** initialize_field(int fType, double p0,double r0,double d,double q,double deltaR,int maxR){
+double** initialize_field(int fType,double* model_parameters,double deltaR,int maxR){
+    double p0 = model_parameters[0];
+    double r0 = model_parameters[1];
+    double d  = model_parameters[2];
+    double q  = model_parameters[3];
     int nR = maxR/deltaR;
     double* r = malloc(sizeof(double)*nR);
     double* phi = malloc(sizeof(double)*nR);
@@ -55,6 +60,99 @@ double** initialize_field(int fType, double p0,double r0,double d,double q,doubl
     return_values[3] = Pi;
  
     return return_values;
+}
+
+double** minkowski_iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,int maxR,int iterations,int save_iteration){
+
+    int nR = maxR/deltaR;
+    double deltaT=deltaR/5.;
+    double* k1 = malloc(sizeof(double)*nR);
+    double* l1 = malloc(sizeof(double)*nR);
+    double* k2 = malloc(sizeof(double)*nR);
+    double* l2 = malloc(sizeof(double)*nR);
+    double* k3 = malloc(sizeof(double)*nR);
+    double* l3 = malloc(sizeof(double)*nR);
+    double* k4 = malloc(sizeof(double)*nR);
+    double* l4 = malloc(sizeof(double)*nR);
+    double* Xhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
+    double* Yhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
+    double* Fhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
+    double* Rhistory = malloc(sizeof(double)*(nR/SAVE_RES));
+    double** hist = malloc(sizeof(double*)*4);
+    int save_count = save_iteration;
+
+    for(int i=0;i<iterations;i++){
+        //Save values of X and Y
+        if(save_count == save_iteration){
+            printf("iteration %d\n",i);
+            #pragma omp parallel for
+            for(int ir=0;ir<(nR/SAVE_RES);ir++){
+                //Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]*Phi[ir*SAVE_RES]*sqrt(2*PI)/a;
+                //Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]* Pi[ir*SAVE_RES]*sqrt(2*PI)/a;
+                Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = Phi[ir*SAVE_RES];
+                Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =  Pi[ir*SAVE_RES];
+                Fhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = phi[ir*SAVE_RES];
+            }
+            save_count=0;
+        }
+        save_count+=1;
+        //Advance Pi and Phi using RK4
+        //calculate k1 and l1
+        k1[0] = 0.5*(-3*Pi[0] +4*Pi[1] -Pi[2])/deltaT;
+        k1[nR-1] = 0;
+        l1[0] = 0.5*(-3*r[0]*r[0]*Phi[0] +4*r[1]*r[1]*Phi[1] -r[2]*r[2]*Phi[2])/(deltaT*(r[0]*r[0]+0.01*deltaR));
+        l1[nR-1] = 0;
+        #pragma omp parallel for
+        for(int ir=1;ir<nR-1;ir++){
+            k1[ir] = 0.5*(Pi[ir+1] -Pi[ir-1])/deltaT;
+            l1[ir] = 0.5*(r[ir+1]*r[ir+1]*Phi[ir+1] -r[ir-1]*r[ir-1]*Phi[ir-1])/(deltaT*r[ir]*r[ir]);
+        }
+        //calculate k2 and l2
+        k2[0] = 0.5*(-3*(Pi[0]+0.5*l1[0]*deltaT) +4*(Pi[1]+0.5*l1[1]*deltaT) -(Pi[2]+0.5*l1[2]*deltaT))/deltaT;
+        k2[nR-1] = 0;
+        l2[0] = 0.5*(-3*r[0]*r[0]*(Phi[0]+0.5*k1[0]*deltaT) +4*r[1]*r[1]*(Phi[1]+0.5*k1[1]*deltaT) -r[2]*r[2]*(Phi[2]+0.5*k1[2]*deltaT))/(deltaT*(r[0]*r[0]+0.01*deltaR));
+        l2[nR-1] = 0;
+        #pragma omp parallel for
+        for(int ir=1;ir<nR-1;ir++){
+            k2[ir] = 0.5*((Pi[ir+1]+0.5*l1[ir+1]*deltaT) -(Pi[ir-1]+0.5*l1[ir-1]*deltaT))/deltaT;
+            l2[ir] = 0.5*(r[ir+1]*r[ir+1]*(Phi[ir+1]+0.5*k1[ir+1]*deltaT) -r[ir-1]*r[ir-1]*(Phi[ir-1]+0.5*k1[ir-1]*deltaT))/(deltaT*r[ir]*r[ir]);
+        }
+        //calculate k3 and l3
+        k3[0] = 0.5*(-3*(Pi[0]+0.5*l2[0]*deltaT) +4*(Pi[1]+0.5*l2[1]*deltaT) -(Pi[2]+0.5*l2[2]*deltaT))/deltaT;
+        k3[nR-1] = 0;
+        l3[0] = 0.5*(-3*r[0]*r[0]*(Phi[0]+0.5*k2[0]*deltaT) +4*r[1]*r[1]*(Phi[1]+0.5*k2[1]*deltaT) -r[2]*r[2]*(Phi[2]+0.5*k2[2]*deltaT))/(deltaT*(r[0]*r[0]+0.01*deltaR));
+        l3[nR-1] = 0;
+        #pragma omp parallel for
+        for(int ir=1;ir<nR-1;ir++){
+            k3[ir] = 0.5*((Pi[ir+1]+0.5*l2[ir+1]*deltaT) -(Pi[ir-1]+0.5*l2[ir-1]*deltaT))/deltaT;
+            l3[ir] = 0.5*(r[ir+1]*r[ir+1]*(Phi[ir+1]+0.5*k2[ir+1]*deltaT) -r[ir-1]*r[ir-1]*(Phi[ir-1]+0.5*k2[ir-1]*deltaT))/(deltaT*r[ir]*r[ir]);
+        }
+        //calculate k4 and l4
+        k4[0] = 0.5*(-3*(Pi[0]+l3[0]*deltaT) +4*(Pi[1]+l3[1]*deltaT) -(Pi[2]+l3[2]*deltaT))/deltaT;
+        k4[nR-1] = 0;
+        l4[0] = 0.5*(-3*r[0]*r[0]*(Phi[0]+k3[0]*deltaT) +4*r[1]*r[1]*(Phi[1]+k3[1]*deltaT) -r[2]*r[2]*(Phi[2]+k3[2]*deltaT))/(deltaT*(r[0]*r[0]+0.01*deltaR));
+        l4[nR-1] = 0;
+        #pragma omp parallel for
+        for(int ir=1;ir<nR-1;ir++){
+            k4[ir] = 0.5*((Pi[ir+1]+l3[ir+1]*deltaT) -(Pi[ir-1]+l3[ir-1]*deltaT))/deltaT;
+            l4[ir] = 0.5*(r[ir+1]*r[ir+1]*(Phi[ir+1]+k3[ir+1]*deltaT) -r[ir-1]*r[ir-1]*(Phi[ir-1]+k3[ir-1]*deltaT))/(deltaT*r[ir]*r[ir]);
+        }
+        //Calculate phi, Phi and Pi on next step
+        #pragma omp parallel for
+        for(int ir=0;ir<nR;ir++){
+            Phi[ir] += (k1[ir]+2*k2[ir]+2*k3[ir]+k4[ir])*deltaT/6.;
+            Pi[ir]  += (l1[ir]+2*l2[ir]+2*l3[ir]+l4[ir])*deltaT/6.;
+            phi[ir] += Pi[ir]*deltaT; //phi is only calculated for visualization purposes
+        }
+    }
+    for(int ir=0;ir<(nR/SAVE_RES);ir++){
+        Rhistory[ir] = r[ir*SAVE_RES];
+    }
+    hist[0] = Rhistory;
+    hist[1] = Fhistory;
+    hist[2] = Xhistory;
+    hist[3] = Yhistory;
+    return hist;
 }
 
 double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,int maxR,int iterations,int save_iteration){
@@ -209,59 +307,76 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
     for(int ir=0;ir<(nR/SAVE_RES);ir++){
         Rhistory[ir] = r[ir*SAVE_RES];
     }
-    hist[0] = Xhistory;
-    hist[1] = Yhistory;
-    hist[2] = Rhistory;
-    hist[3] = Fhistory;
+    hist[0] = Rhistory;
+    hist[1] = Fhistory;
+    hist[2] = Xhistory;
+    hist[3] = Yhistory;
     return hist;
 }
 
 
-void print_data(double** hist,int print_iterations,int printR){
-    FILE* x_data;
-    FILE* y_data;
-    FILE* r_data;
-    FILE* f_data;
+void print_data(double** hist,int fType,double* model_parameters,int iterations,int maxR,int deltaR,int nP,time_t totalTime){
+    int print_iterations = iterations/SAVE_ITERATION;
+    int printR = (maxR/deltaR)/SAVE_RES;
+    double p0 = model_parameters[0];
+    double r0 = model_parameters[1];
+    double d  = model_parameters[2];
+    double q  = model_parameters[3];
 
-    x_data = fopen("Xhistory.dat","w");
-    y_data = fopen("Yhistory.dat","w");
-    r_data = fopen("Rhistory.dat","w");
-    f_data = fopen("Fhistory.dat","w");
+    FILE* data;
 
-    //Print X, Y and F
-    for(int i=0;i<print_iterations-1;i++){
-        for(int ir=0;ir<(printR-1);ir++){
-            fprintf(x_data,"%lf,",hist[0][i*printR+ir]);
-            fprintf(y_data,"%lf,",hist[1][i*printR+ir]);
-            fprintf(f_data,"%lf,",hist[3][i*printR+ir]);
-        }
-        fprintf(x_data,"%lf\n",hist[0][i*printR+printR-1]);
-        fprintf(y_data,"%lf\n",hist[1][i*printR+printR-1]);
-        fprintf(f_data,"%lf\n",hist[3][i*printR+printR-1]);
-    }
-    for(int ir=0;ir<(printR-1);ir++){
-        fprintf(x_data,"%lf,",hist[0][(print_iterations-1)*printR+ir]);
-        fprintf(y_data,"%lf,",hist[1][(print_iterations-1)*printR+ir]);
-        fprintf(f_data,"%lf,",hist[3][(print_iterations-1)*printR+ir]);
-    }
-    fprintf(x_data,"%lf",hist[0][print_iterations*printR-1]);
-    fprintf(y_data,"%lf",hist[1][print_iterations*printR-1]);
-    fprintf(f_data,"%lf",hist[3][print_iterations*printR-1]);
+    data = fopen("Output.dat","w");
+
+    //Print all parameters
+    if(MINKOWSKI) fprintf(data,"Metric: Minkowski\n");
+    else          fprintf(data,"Metric: Choptuik\n" );
+    fprintf(data,"Function type: %d\n",fType);
+    fprintf(data,"p0: %lf\n",p0);
+    fprintf(data,"r0: %lf\n",r0);
+    fprintf(data,"d: %lf\n",d);
+    fprintf(data,"q: %lf\n",q);
+    fprintf(data,"Iterations: %d\n",iterations);
+    fprintf(data,"Maximum R: %d\n",maxR);
+    fprintf(data,"R step size: %lf\n",deltaR);
+    fprintf(data,"Number of threads: %d\n",nP);
+    fprintf(data,"Total simulation time: %lds\n",totalTime);
 
     //Print R
     for(int ir=0;ir<(printR-1);ir++){
-        fprintf(r_data,"%lf,",hist[2][ir]);
+        fprintf(data,"%lf,",hist[2][ir]);
     }
-    fprintf(r_data,"%lf",hist[2][printR-1]);
-
-    fclose(x_data);
-    fclose(y_data);
-    fclose(r_data);
-    fclose(f_data);
-
+    fprintf(data,"%lf\n",hist[2][printR-1]);
+    //Print phi
+    for(int i=0;i<print_iterations;i++){
+        for(int ir=0;ir<(printR-1);ir++){
+            fprintf(data,"%lf,",hist[3][i*printR+ir]);
+        }
+        fprintf(data,"%lf\n",hist[3][i*printR+printR-1]);
+    }
+    //Print Phi
+    for(int i=0;i<print_iterations;i++){
+        for(int ir=0;ir<(printR-1);ir++){
+            fprintf(data,"%lf,",hist[0][i*printR+ir]);
+        }
+        fprintf(data,"%lf\n",hist[0][i*printR+printR-1]);
+    }
+    //Print Pi
+    for(int i=0;i<print_iterations-1;i++){
+        for(int ir=0;ir<(printR-1);ir++){
+            fprintf(data,"%lf,",hist[0][i*printR+ir]);
+        }
+        fprintf(data,"%lf\n",hist[1][i*printR+printR-1]);
+    }
+    for(int ir=0;ir<(printR-1);ir++){
+        fprintf(data,"%lf,",hist[1][(print_iterations-1)*printR+ir]);
+    }
+    fprintf(data,"%lf",hist[1][print_iterations*printR-1]);
+            
+    fclose(data);
 }
 
 int main(int argc, char* argv[]){
+    double* model_parameters;
     double** initial_conditions;
     double** hist;
     double* r;
@@ -269,7 +384,7 @@ int main(int argc, char* argv[]){
     double* Phi;
     double* Pi;
     
-    //Define initial conditions
+    //Define simulation parameters
     int fType = 0;
     if((argc>1) && atoi(argv[1])) fType = atoi(argv[1]);
     double p0 = 0.001;
@@ -280,6 +395,10 @@ int main(int argc, char* argv[]){
     if((argc>4) && atof(argv[4])) d  = atof(argv[4]);
     double q = 2.;
     if((argc>5) && atof(argv[5])) q  = atof(argv[5]);
+    model_parameters[0] = p0;
+    model_parameters[1] = r0;
+    model_parameters[2] = d;
+    model_parameters[3] = q;
     
     //Define simulation limits
     int iterations = ITERATIONS;
@@ -296,7 +415,7 @@ int main(int argc, char* argv[]){
     printf("iterations: %d\n",iterations);
     printf("maxR: %d\n",maxR);
 
-    initial_conditions = initialize_field(fType,p0,r0,d,q,deltaR,maxR);
+    initial_conditions = initialize_field(fType,model_parameters,deltaR,maxR);
     r = initial_conditions[0];
     phi = initial_conditions[1];
     Phi = initial_conditions[2];
@@ -304,18 +423,17 @@ int main(int argc, char* argv[]){
 
     //Pass initial conditions to iteration
     if((argc>8) && atoi(argv[8])) omp_set_num_threads(atoi(argv[8]));
-    time_t init_time = time(NULL);
-    hist = iteration(r,phi,Phi,Pi,deltaR,maxR,iterations,SAVE_ITERATION);
-    time_t final_time = time(NULL);
+    time_t initTime = time(NULL);
+    if(MINKOWSKI) hist  = iteration(r,phi,Phi,Pi,deltaR,maxR,iterations,SAVE_ITERATION);
+    else hist = minkowski_iteration(r,phi,Phi,Pi,deltaR,maxR,iterations,SAVE_ITERATION);
+    time_t finalTime = time(NULL);
     int nP = omp_get_max_threads();
-    float time_delta = (final_time-init_time);
-    printf("Iteration finished\nNumber of iterations: %d\nNumber of processes: %d\nTotal time: %lds\n",iterations,nP,final_time-init_time);
+    float timeDelta = (finalTime-initTime);
+    printf("Iteration finished\nNumber of iterations: %d\nNumber of processes: %d\nTotal time: %lds\n",iterations,nP,finalTime-initTime);
 
     //Print simulation history to a file
-    int printR = (maxR/deltaR)/SAVE_RES;
-    print_data(hist,iterations/SAVE_ITERATION,printR);
+    print_data(hist,fType,model_parameters,iterations,maxR,deltaR,nP,timeDelta);
     printf("Printing finished\n");
-
 }
 
 

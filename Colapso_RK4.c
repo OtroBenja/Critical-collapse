@@ -1,16 +1,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <time.h>
+#if defined(_OPENMP)
+#include <omp.h>
+#else 
+int omp_get_num_threads(){return 1;}
+int omp_get_max_threads(){return 1;}
+int omp_get_thread_num(){return 1;}
+#endif
 
-#define SAVE_RES 100
+#define SAVE_RES 500
 #define SAVE_ITERATION 100
-#define PRINT_RES 10000
-#define ITERATIONS 40000
+#define ITERATIONS 20000
 #define PI 3.1415
 
 
 
-double** initialize_field(double p0,double r0,double d,double q,double deltaR,int maxR){
+double** initialize_field(int fType, double p0,double r0,double d,double q,double deltaR,int maxR){
     int nR = maxR/deltaR;
     double* r = malloc(sizeof(double)*nR);
     double* phi = malloc(sizeof(double)*nR);
@@ -19,9 +26,15 @@ double** initialize_field(double p0,double r0,double d,double q,double deltaR,in
     double** return_values = malloc(sizeof(double*)*4);
 
     //Define r and calculate initial phi
-    for(int i=0;i<nR;i++){
+    for(int i=0;i<nR;i++)
         r[i] = i*deltaR;
-        phi[i] = p0*tanh((i*deltaR-r0)/d);
+    if(fType==0){
+        for(int i=0;i<nR;i++)
+            phi[i] = p0*tanh((i*deltaR-r0)/d);
+    }
+    if(fType==1){
+        for(int i=0;i<nR;i++)
+            phi[i] = p0*tanh((i*deltaR-r0)/d);
     }
 
     //Calculate initial Phi
@@ -76,7 +89,6 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
     double* Rhistory = malloc(sizeof(double)*(nR/SAVE_RES));
     double** hist = malloc(sizeof(double*)*4);
     int save_count = save_iteration;
-    int print_count = PRINT_RES;
 
     a[0] = 1.;
     alpha[0] = 1.;
@@ -88,9 +100,9 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
 
     for(int i=0;i<iterations;i++){
         
-        
         //Solve a and alpha with known values of PHI and PI using RK4
         //Useful auxiliar variable
+        #pragma omp parallel for
         for(int ir=0;ir<nR-1;ir++)
             Beta[ir] = 2.0*PI*r[ir]*(Pi[ir]*Pi[ir]+Phi[ir]*Phi[ir]);
         for(int ir=0;ir<nR-1;ir++){
@@ -109,18 +121,12 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
             //Calculate next step for a and alpha
             a[ir+1] = a[ir] + deltaR*(m1 +2*m2 +2*m3 +m4)/6;
             alpha[ir+1] = alpha[ir] + deltaR*(n1 +2*n2 +2*n3 +n4)/6;
-
-            //Print some values of a and alpha (for debuging)
-            //if(print_count == PRINT_RES){
-            //    printf("a:%.8lf al:%.8lf r:%d\t",a[ir],alpha[ir],ir);
-            //    print_count=0;
-            //}
-            //print_count+=1;
         }
 
         //Save values of X and Y
         if(save_count == save_iteration){
             printf("iteration %d\n",i);
+            #pragma omp parallel for
             for(int ir=0;ir<(nR/SAVE_RES);ir++){
                 //Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]*Phi[ir*SAVE_RES]*sqrt(2*PI)/a[ir*SAVE_RES];
                 //Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]* Pi[ir*SAVE_RES]*sqrt(2*PI)/a[ir*SAVE_RES];
@@ -135,6 +141,7 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         save_count+=1;
         //Advance Pi and Phi using RK4 
         //Usefull auxiliar variables
+        #pragma omp parallel for
         for(int ir=0;ir<nR;ir++){
             Gamma[ir] = alpha[ir]/a[ir];
             Epsilon[ir] = r[ir]*r[ir]*alpha[ir]/a[ir];
@@ -147,6 +154,7 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         l1[0] = 0.5*(-3*Epsilon[0]*Phi[0] +4*Epsilon[1]*Phi[1] -Epsilon[2]*Phi[2])/(deltaT*(r2[0]+0.01*deltaR));
         //l1[nR-1] = -0.5*(3*Epsilon[nR-1]*Gamma[nR-1]*Pi[nR-1] -4*Epsilon[nR-2]*Gamma[nR-2]*Pi[nR-2] +Epsilon[nR-3]*Gamma[nR-3]*Pi[nR-3])/(deltaT*r2[nR-1]);
         l1[nR-1] = 0;
+        #pragma omp parallel for
         for(int ir=1;ir<nR-1;ir++){
             k1[ir] = 0.5*(Gamma[ir+1]*Pi[ir+1] -Gamma[ir-1]*Pi[ir-1])/deltaT;
             l1[ir] = 0.5*(Epsilon[ir+1]*Phi[ir+1] -Epsilon[ir-1]*Phi[ir-1])/(deltaT*r2[ir]);
@@ -158,6 +166,7 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         l2[0] = 0.5*(-3*Epsilon[0]*(Phi[0]+0.5*k1[0]*deltaT) +4*Epsilon[1]*(Phi[1]+0.5*k1[1]*deltaT) -Epsilon[2]*(Phi[2]+0.5*k1[2]*deltaT))/(deltaT*(r2[0]+0.01*deltaR));
         //l2[nR-1] = -0.5*(3*Epsilon[nR-1]*Gamma[nR-1]*(Pi[nR-1]+0.5*l1[nR-1]*deltaT) -4*Epsilon[nR-2]*Gamma[nR-2]*(Pi[nR-2]+0.5*l1[nR-2]*deltaT) +Epsilon[nR-3]*Gamma[nR-3]*(Pi[nR-3]+0.5*l1[nR-3]*deltaT))/(deltaT*r2[nR-1]);
         l2[nR-1] = 0;
+        #pragma omp parallel for
         for(int ir=1;ir<nR-1;ir++){
             k2[ir] = 0.5*(Gamma[ir+1]*(Pi[ir+1]+0.5*l1[ir+1]*deltaT) -Gamma[ir-1]*(Pi[ir-1]+0.5*l1[ir-1]*deltaT))/deltaT;
             l2[ir] = 0.5*(Epsilon[ir+1]*(Phi[ir+1]+0.5*k1[ir+1]*deltaT) -Epsilon[ir-1]*(Phi[ir-1]+0.5*k1[ir-1]*deltaT))/(deltaT*r2[ir]);
@@ -169,6 +178,7 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         l3[0] = 0.5*(-3*Epsilon[0]*(Phi[0]+0.5*k2[0]*deltaT) +4*Epsilon[1]*(Phi[1]+0.5*k2[1]*deltaT) -Epsilon[2]*(Phi[2]+0.5*k2[2]*deltaT))/(deltaT*(r2[0]+0.01*deltaR));
         //l3[nR-1] = -0.5*(3*Epsilon[nR-1]*Gamma[nR-1]*(Pi[nR-1]+0.5*l2[nR-1]*deltaT) -4*Epsilon[nR-2]*Gamma[nR-2]*(Pi[nR-2]+0.5*l2[nR-2]*deltaT) +Epsilon[nR-3]*Gamma[nR-3]*(Pi[nR-3]+0.5*l2[nR-3]*deltaT))/(deltaT*r2[nR-1]);
         l3[nR-1] = 0;
+        #pragma omp parallel for
         for(int ir=1;ir<nR-1;ir++){
             k3[ir] = 0.5*(Gamma[ir+1]*(Pi[ir+1]+0.5*l2[ir+1]*deltaT) -Gamma[ir-1]*(Pi[ir-1]+0.5*l2[ir-1]*deltaT))/deltaT;
             l3[ir] = 0.5*(Epsilon[ir+1]*(Phi[ir+1]+0.5*k2[ir+1]*deltaT) -Epsilon[ir-1]*(Phi[ir-1]+0.5*k2[ir-1]*deltaT))/(deltaT*r2[ir]);
@@ -180,11 +190,13 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         l4[0] = 0.5*(-3*Epsilon[0]*(Phi[0]+k3[0]*deltaT) +4*Epsilon[1]*(Phi[1]+k3[1]*deltaT) -Epsilon[2]*(Phi[2]+k3[2]*deltaT))/(deltaT*(r[0]+0.01*deltaR));
         //l4[nR-1] = -0.5*(3*Epsilon[nR-1]*Gamma[nR-1]*(Pi[nR-1]+l3[nR-1]*deltaT) -4*Epsilon[nR-2]*Gamma[nR-2]*(Pi[nR-2]+l3[nR-2]*deltaT) +Epsilon[nR-3]*Gamma[nR-3]*(Pi[nR-3]+l3[nR-3]*deltaT))/(deltaT*r2[nR-1]);
         l4[nR-1] = 0;
+        #pragma omp parallel for
         for(int ir=1;ir<nR-1;ir++){
             k4[ir] = 0.5*(Gamma[ir+1]*(Pi[ir+1]+l3[ir+1]*deltaT) -Gamma[ir-1]*(Pi[ir-1]+l3[ir-1]*deltaT))/deltaT;
             l4[ir] = 0.5*(Epsilon[ir+1]*(Phi[ir+1]+k3[ir+1]*deltaT) -Epsilon[ir-1]*(Phi[ir-1]+k3[ir-1]*deltaT))/(deltaT*r2[ir]);
         }
         //Calculate phi, Phi and Pi on next step
+        #pragma omp parallel for
         for(int ir=0;ir<nR;ir++){
             Phi[ir] += (k1[ir]+2*k2[ir]+2*k3[ir]+k4[ir])*deltaT/6.;
             Pi[ir] += (l1[ir]+2*l2[ir]+2*l3[ir]+l4[ir])*deltaT/6.;
@@ -249,8 +261,7 @@ void print_data(double** hist,int print_iterations,int printR){
 
 }
 
-
-int main(){
+int main(int argc, char* argv[]){
     double** initial_conditions;
     double** hist;
     double* r;
@@ -259,24 +270,50 @@ int main(){
     double* Pi;
     
     //Define initial conditions
+    int fType = 0;
+    if((argc>1) && atoi(argv[1])) fType = atoi(argv[1]);
     double p0 = 0.001;
+    if((argc>2) && atof(argv[2])) p0 = atof(argv[2]);
     double r0 = 20.;
+    if((argc>3) && atof(argv[3])) r0 = atof(argv[3]);
     double d = 3.;
+    if((argc>4) && atof(argv[4])) d  = atof(argv[4]);
     double q = 2.;
-    double deltaR = 0.001;
+    if((argc>5) && atof(argv[5])) q  = atof(argv[5]);
+    
+    //Define simulation limits
+    int iterations = ITERATIONS;
+    if((argc>6) && atoi(argv[6])) iterations = atoi(argv[6]);
     int maxR = 80;
-    initial_conditions = initialize_field(p0,r0,d,q,deltaR,maxR);
+    if((argc>7) && atoi(argv[7])) maxR = atoi(argv[7]);
+    double deltaR = 0.001;
+
+    printf("fType: %d\n",fType);
+    printf("p0: %lf\n",p0);
+    printf("r0: %lf\n",r0);
+    printf("d: %lf\n",d);
+    printf("q: %lf\n",q);
+    printf("iterations: %d\n",iterations);
+    printf("maxR: %d\n",maxR);
+
+    initial_conditions = initialize_field(fType,p0,r0,d,q,deltaR,maxR);
     r = initial_conditions[0];
     phi = initial_conditions[1];
     Phi = initial_conditions[2];
     Pi = initial_conditions[3];
 
     //Pass initial conditions to iteration
-    hist = iteration(r,phi,Phi,Pi,deltaR,maxR,ITERATIONS,SAVE_ITERATION);
-    printf("Iteration finished\n");
+    if((argc>8) && atoi(argv[8])) omp_set_num_threads(atoi(argv[8]));
+    time_t init_time = time(NULL);
+    hist = iteration(r,phi,Phi,Pi,deltaR,maxR,iterations,SAVE_ITERATION);
+    time_t final_time = time(NULL);
+    int nP = omp_get_max_threads();
+    float time_delta = (final_time-init_time);
+    printf("Iteration finished\nNumber of iterations: %d\nNumber of processes: %d\nTotal time: %lds\n",iterations,nP,final_time-init_time);
+
     //Print simulation history to a file
     int printR = (maxR/deltaR)/SAVE_RES;
-    print_data(hist,ITERATIONS/SAVE_ITERATION,printR);
+    print_data(hist,iterations/SAVE_ITERATION,printR);
     printf("Printing finished\n");
 
 }

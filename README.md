@@ -12,8 +12,8 @@ value is assigned. The arguments are the following:
 - r0       (float)
 - d        (float)
 - q        (float)
-- iterations (int)  Total number of iterations to run the simulation
 - maxR       (int)  Maximun value for the radial coordinate, determinates the total space to simulate on
+- iterations (int)  Total number of iterations to run the simulation
 - nThreads   (int)  Number of threads used for paralelization
 
 The program outputs a file after finishing which contains the following:
@@ -30,5 +30,5 @@ as well as reducing the file size of the output. How many values are saved can b
 changed with the constants SAVE_RES and SAVE_ITERATION in the C file.
 
 
-The file plot.py loads the previous output and renders an animation of the simulation (currently only works with the old format).
+The notebook plot.ipynb can be used to load previous outputs and see a speed comparison as well as render an animation of the simulation
 

@@ -12,9 +12,10 @@ int omp_get_thread_num(){return 1;}
 
 #define MINKOWSKI 0
 #define SAVE_RES 500
-#define SAVE_ITERATION 100
+#define SAVE_ITERATION 1000
 #define ITERATIONS 20000
-#define PI 3.1415
+#define PI 3.141592653
+#define E  2.718281828
 
 
 
@@ -39,7 +40,7 @@ double** initialize_field(int fType,double* model_parameters,double deltaR,int m
     }
     if(fType==1){
         for(int i=0;i<nR;i++)
-            phi[i] = p0*tanh((i*deltaR-r0)/d);
+            phi[i] = p0*pow(i*deltaR,3)*pow(E,-pow((i*deltaR-r0)/d,q));
     }
 
     //Calculate initial Phi
@@ -333,7 +334,8 @@ void print_data(double** hist,int fType,double* model_parameters,int iterations,
     //Print all parameters
     if(MINKOWSKI) fprintf(data,"Metric: Minkowski\n");
     else          fprintf(data,"Metric: Choptuik\n" );
-    fprintf(data,"Function type: %d\n",fType);
+    if(fType) fprintf(data,"Function type: Exponential\n");
+    else fprintf(data,"Function type: Hyperbolic Tan\n");
     fprintf(data,"p0: %lf\n",p0);
     fprintf(data,"r0: %lf\n",r0);
     fprintf(data,"d: %lf\n",d);
@@ -403,7 +405,7 @@ int main(int argc, char* argv[]){
     
     //Define simulation limits
     double deltaR = 0.001;
-    int maxR = 80;
+    int maxR = 70;
     if((argc>6) && atoi(argv[6])) maxR = atoi(argv[6]);
     int iterations = ITERATIONS;
     if((argc>7) && atoi(argv[7])) iterations = atoi(argv[7]);

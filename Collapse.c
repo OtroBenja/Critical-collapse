@@ -75,10 +75,12 @@ double** minkowski_iteration(double* r,double* phi,double* Phi,double* Pi,double
     double* l3 = malloc(sizeof(double)*nR);
     double* k4 = malloc(sizeof(double)*nR);
     double* l4 = malloc(sizeof(double)*nR);
+    double* Rhistory = malloc(sizeof(double)*(nR/SAVE_RES));
+    double* Fhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
     double* Xhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
     double* Yhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
-    double* Fhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
-    double* Rhistory = malloc(sizeof(double)*(nR/SAVE_RES));
+    double* Ahistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
+    double* Bhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
     double** hist = malloc(sizeof(double*)*4);
     int save_count = save_iteration;
 
@@ -90,9 +92,11 @@ double** minkowski_iteration(double* r,double* phi,double* Phi,double* Pi,double
             for(int ir=0;ir<(nR/SAVE_RES);ir++){
                 //Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]*Phi[ir*SAVE_RES]*sqrt(2*PI)/a;
                 //Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]* Pi[ir*SAVE_RES]*sqrt(2*PI)/a;
+                Fhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = phi[ir*SAVE_RES];
                 Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = Phi[ir*SAVE_RES];
                 Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =  Pi[ir*SAVE_RES];
-                Fhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = phi[ir*SAVE_RES];
+                Ahistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =  1.;
+                Bhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =  1.;
             }
             save_count=0;
         }
@@ -155,6 +159,8 @@ double** minkowski_iteration(double* r,double* phi,double* Phi,double* Pi,double
     hist[1] = Fhistory;
     hist[2] = Xhistory;
     hist[3] = Yhistory;
+    hist[4] = Ahistory;
+    hist[5] = Bhistory;
     return hist;
 }
 
@@ -185,11 +191,13 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
     double n3;
     double m4;
     double n4;
+    double* Rhistory = malloc(sizeof(double)*(nR/SAVE_RES));
+    double* Fhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
     double* Xhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
     double* Yhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
-    double* Fhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
-    double* Rhistory = malloc(sizeof(double)*(nR/SAVE_RES));
-    double** hist = malloc(sizeof(double*)*4);
+    double* Ahistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
+    double* Bhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
+    double** hist = malloc(sizeof(double*)*6);
     int save_count = save_iteration;
 
     a[0] = 1.;
@@ -213,8 +221,8 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         
         for(int ir=0;ir<nR-1;ir++){
             //calculate m1 and n1
-            m1 = a[ir]*(Beta[ir]-0.5*(a[ir]*a[ir]-1)/(r[ir]+deltaR/10));
-            n1 = alpha[ir]*(Beta[ir]+0.5*(a[ir]*a[ir]-1)/(r[ir]+deltaR/10));
+            m1 = a[ir]*(Beta[ir]-0.5*(a[ir]*a[ir]-1)/(r[ir]+deltaR/100));
+            n1 = alpha[ir]*(Beta[ir]+0.5*(a[ir]*a[ir]-1)/(r[ir]+deltaR/100));
             //calculate m2 and n2
             m2 = (a[ir]+deltaR*m1/2)*(Beta1_2[ir]-0.5*((a[ir]+deltaR*m1/2)*(a[ir]+deltaR*m1/2)-1)/(r[ir]+deltaR/2));
             n2 = (alpha[ir]+deltaR*n1/2)*(Beta1_2[ir]+0.5*((a[ir]+deltaR*m1/2)*(a[ir]+deltaR*m1/2)-1)/(r[ir]+deltaR/2));
@@ -239,8 +247,8 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
                 Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = Phi[ir*SAVE_RES];
                 Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =  Pi[ir*SAVE_RES];
                 Fhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = phi[ir*SAVE_RES];
-                //Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = alpha[ir*SAVE_RES];
-                //Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = a[ir*SAVE_RES];
+                Ahistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =   a[ir*SAVE_RES];
+                Bhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = alpha[ir*SAVE_RES];
             }
             save_count=0;
         }
@@ -318,6 +326,8 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
     hist[1] = Fhistory;
     hist[2] = Xhistory;
     hist[3] = Yhistory;
+    hist[4] = Ahistory;
+    hist[5] = Bhistory;
     return hist;
 }
 
@@ -371,16 +381,30 @@ void print_data(double** hist,int fType,double* model_parameters,int iterations,
         fprintf(data,"%lf\n",hist[2][i*printR+printR-1]);
     }
     //Print Pi
-    for(int i=0;i<print_iterations-1;i++){
+    for(int i=0;i<print_iterations;i++){
         for(int ir=0;ir<(printR-1);ir++){
             fprintf(data,"%lf,",hist[3][i*printR+ir]);
         }
         fprintf(data,"%lf\n",hist[3][i*printR+printR-1]);
     }
-    for(int ir=0;ir<(printR-1);ir++){
-        fprintf(data,"%lf,",hist[3][(print_iterations-1)*printR+ir]);
+    //Print a
+    for(int i=0;i<print_iterations;i++){
+        for(int ir=0;ir<(printR-1);ir++){
+            fprintf(data,"%lf,",hist[4][i*printR+ir]);
+        }
+        fprintf(data,"%lf\n",hist[4][i*printR+printR-1]);
     }
-    fprintf(data,"%lf",hist[3][print_iterations*printR-1]);
+    //Print alpha
+    for(int i=0;i<print_iterations-1;i++){
+        for(int ir=0;ir<(printR-1);ir++){
+            fprintf(data,"%lf,",hist[5][i*printR+ir]);
+        }
+        fprintf(data,"%lf\n",hist[5][i*printR+printR-1]);
+    }
+    for(int ir=0;ir<(printR-1);ir++){
+        fprintf(data,"%lf,",hist[5][(print_iterations-1)*printR+ir]);
+    }
+    fprintf(data,"%lf",hist[5][print_iterations*printR-1]);
     fclose(data);
 }
 

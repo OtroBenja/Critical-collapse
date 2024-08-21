@@ -165,6 +165,7 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
     double* a = malloc(sizeof(double)*nR);
     double* alpha = malloc(sizeof(double)*nR);
     double* Beta = malloc(sizeof(double)*nR);
+    double* Beta1_2 = malloc(sizeof(double)*nR);
     double* Gamma = malloc(sizeof(double)*nR);
     double* Epsilon = malloc(sizeof(double)*nR);
     double* r2 = malloc(sizeof(double)*nR);
@@ -204,18 +205,22 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         //Solve a and alpha with known values of PHI and PI using RK4
         //Useful auxiliar variable
         #pragma omp parallel for
-        for(int ir=0;ir<nR-1;ir++)
+        for(int ir=0;ir<nR;ir++)
             Beta[ir] = 2.0*PI*r[ir]*(Pi[ir]*Pi[ir]+Phi[ir]*Phi[ir]);
+        #pragma omp parallel for
+        for(int ir=0;ir<nR-1;ir++)
+            Beta1_2[ir] = 0.5*PI*(r[ir]+deltaR/2)*((Pi[ir]+Pi[ir+1])*(Pi[ir]+Pi[ir+1])+(Phi[ir]+Phi[ir+1])*(Phi[ir]+Phi[ir+1]));
+        
         for(int ir=0;ir<nR-1;ir++){
             //calculate m1 and n1
             m1 = a[ir]*(Beta[ir]-0.5*(a[ir]*a[ir]-1)/(r[ir]+deltaR/10));
             n1 = alpha[ir]*(Beta[ir]+0.5*(a[ir]*a[ir]-1)/(r[ir]+deltaR/10));
             //calculate m2 and n2
-            m2 = (a[ir]+deltaR*m1/2)*(0.5*(Beta[ir]+Beta[ir+1])-0.5*((a[ir]+deltaR*m1/2)*(a[ir]+deltaR*m1/2)-1)/(r[ir]+deltaR/2));
-            n2 = (alpha[ir]+deltaR*n1/2)*(0.5*(Beta[ir]+Beta[ir+1])+0.5*((a[ir]+deltaR*m1/2)*(a[ir]+deltaR*m1/2)-1)/(r[ir]+deltaR/2));
+            m2 = (a[ir]+deltaR*m1/2)*(Beta1_2[ir]-0.5*((a[ir]+deltaR*m1/2)*(a[ir]+deltaR*m1/2)-1)/(r[ir]+deltaR/2));
+            n2 = (alpha[ir]+deltaR*n1/2)*(Beta1_2[ir]+0.5*((a[ir]+deltaR*m1/2)*(a[ir]+deltaR*m1/2)-1)/(r[ir]+deltaR/2));
             //calculate m3 and n3
-            m3 = (a[ir]+deltaR*m2/2)*(0.5*(Beta[ir]+Beta[ir+1])-0.5*((a[ir]+deltaR*m2/2)*(a[ir]+deltaR*m2/2)-1)/(r[ir]+deltaR/2));
-            n3 = (alpha[ir]+deltaR*n2/2)*(0.5*(Beta[ir]+Beta[ir+1])+0.5*((a[ir]+deltaR*m2/2)*(a[ir]+deltaR*m2/2)-1)/(r[ir]+deltaR/2));
+            m3 = (a[ir]+deltaR*m2/2)*(Beta1_2[ir]-0.5*((a[ir]+deltaR*m2/2)*(a[ir]+deltaR*m2/2)-1)/(r[ir]+deltaR/2));
+            n3 = (alpha[ir]+deltaR*n2/2)*(Beta1_2[ir]+0.5*((a[ir]+deltaR*m2/2)*(a[ir]+deltaR*m2/2)-1)/(r[ir]+deltaR/2));
             //calculate m4 and n4
             m4 = (a[ir]+deltaR*m3)*(Beta[ir+1]-0.5*((a[ir]+deltaR*m3)*(a[ir]+deltaR*m3)-1)/r[ir+1]);
             n4 = (alpha[ir]+deltaR*n3)*(Beta[ir+1]+0.5*((a[ir]+deltaR*m3)*(a[ir]+deltaR*m3)-1)/r[ir+1]);
@@ -244,9 +249,9 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         //Usefull auxiliar variables
         #pragma omp parallel for
         for(int ir=0;ir<nR;ir++){
+            r2[ir] = r[ir]*r[ir];
             Gamma[ir] = alpha[ir]/a[ir];
             Epsilon[ir] = r[ir]*r[ir]*alpha[ir]/a[ir];
-            r2[ir] = r[ir]*r[ir];
         }
         //calculate k1 and l1
         k1[0] = 0.5*(-3*Gamma[0]*Pi[0] +4*Gamma[1]*Pi[1] -Gamma[2]*Pi[2])/deltaT;

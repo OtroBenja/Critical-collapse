@@ -12,7 +12,7 @@ int omp_get_thread_num(){return 1;}
 
 #define MINKOWSKI 0
 #define SAVE_RES 500
-#define SAVE_ITERATION 1000
+#define SAVE_ITERATION 100
 #define ITERATIONS 20000
 #define PI 3.141592653
 #define E  2.718281828
@@ -216,8 +216,10 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         for(int ir=0;ir<nR;ir++)
             Beta[ir] = 2.0*PI*r[ir]*(Pi[ir]*Pi[ir]+Phi[ir]*Phi[ir]);
         #pragma omp parallel for
-        for(int ir=0;ir<nR-1;ir++)
+        for(int ir=0;ir<nR-1;ir++){
             Beta1_2[ir] = 0.5*PI*(r[ir]+deltaR/2)*((Pi[ir]+Pi[ir+1])*(Pi[ir]+Pi[ir+1])+(Phi[ir]+Phi[ir+1])*(Phi[ir]+Phi[ir+1]));
+            //Beta1_2[ir] = 2.0*PI*(r[ir]+deltaR/2)*(Pi[ir]*Pi[ir]+Phi[ir]*Phi[ir]);
+        }
         
         for(int ir=0;ir<nR-1;ir++){
             //calculate m1 and n1

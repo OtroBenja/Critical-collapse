@@ -222,7 +222,7 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
             Beta[ir] = 2.0*PI*r[ir]*(Pi[ir]*Pi[ir]+Phi[ir]*Phi[ir]);
         #pragma omp parallel for
         for(int ir=0;ir<nR-1;ir++){
-            Beta1_2[ir] = 0.5*PI*(r[ir]+deltaR/2)*((Pi[ir]+Pi[ir+1])*(Pi[ir]+Pi[ir+1])+(Phi[ir]+Phi[ir+1])*(Phi[ir]+Phi[ir+1]));
+            Beta1_2[ir] = 0.5*PI*(r[ir]+0.5*deltaR)*((Pi[ir]+Pi[ir+1])*(Pi[ir]+Pi[ir+1])+(Phi[ir]+Phi[ir+1])*(Phi[ir]+Phi[ir+1]));
             //Beta1_2[ir] = 2.0*PI*(r[ir]+deltaR/2)*(Pi[ir]*Pi[ir]+Phi[ir]*Phi[ir]);
         }
         
@@ -231,17 +231,17 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
             m1 =     a[ir]*(Beta[ir]-0.5*(a[ir]*a[ir]-1)/r[ir]);
             n1 = alpha[ir]*(Beta[ir]+0.5*(a[ir]*a[ir]-1)/r[ir]);
             //calculate m2 and n2
-            m2 =     (a[ir]+deltaR*m1/2)*(Beta1_2[ir]-0.5*((a[ir]+deltaR*m1/2)*(a[ir]+deltaR*m1/2)-1)/(r[ir]+deltaR/2));
-            n2 = (alpha[ir]+deltaR*n1/2)*(Beta1_2[ir]+0.5*((a[ir]+deltaR*m1/2)*(a[ir]+deltaR*m1/2)-1)/(r[ir]+deltaR/2));
+            m2 =     (a[ir]+0.5*deltaR*m1)*(Beta1_2[ir]-0.5*((a[ir]+deltaR*m1/2)*(a[ir]+deltaR*m1/2)-1)/(r[ir]+0.5*deltaR));
+            n2 = (alpha[ir]+0.5*deltaR*n1)*(Beta1_2[ir]+0.5*((a[ir]+deltaR*m1/2)*(a[ir]+deltaR*m1/2)-1)/(r[ir]+0.5*deltaR));
             //calculate m3 and n3
-            m3 =     (a[ir]+deltaR*m2/2)*(Beta1_2[ir]-0.5*((a[ir]+deltaR*m2/2)*(a[ir]+deltaR*m2/2)-1)/(r[ir]+deltaR/2));
-            n3 = (alpha[ir]+deltaR*n2/2)*(Beta1_2[ir]+0.5*((a[ir]+deltaR*m2/2)*(a[ir]+deltaR*m2/2)-1)/(r[ir]+deltaR/2));
+            m3 =     (a[ir]+0.5*deltaR*m2)*(Beta1_2[ir]-0.5*((a[ir]+deltaR*m2/2)*(a[ir]+deltaR*m2/2)-1)/(r[ir]+0.5*deltaR));
+            n3 = (alpha[ir]+0.5*deltaR*n2)*(Beta1_2[ir]+0.5*((a[ir]+deltaR*m2/2)*(a[ir]+deltaR*m2/2)-1)/(r[ir]+0.5*deltaR));
             //calculate m4 and n4
             m4 =     (a[ir]+deltaR*m3)*(Beta[ir+1]-0.5*((a[ir]+deltaR*m3)*(a[ir]+deltaR*m3)-1)/r[ir+1]);
             n4 = (alpha[ir]+deltaR*n3)*(Beta[ir+1]+0.5*((a[ir]+deltaR*m3)*(a[ir]+deltaR*m3)-1)/r[ir+1]);
             //Calculate next step for a and alpha
-            a[ir+1]     = a[ir]     + deltaR*(m1 +2*m2 +2*m3 +m4)/6;
-            alpha[ir+1] = alpha[ir] + deltaR*(n1 +2*n2 +2*n3 +n4)/6;
+            a[ir+1]     = a[ir]     + deltaR*(m1 +2.0*m2 +2.0*m3 +m4)/6.0;
+            alpha[ir+1] = alpha[ir] + deltaR*(n1 +2.0*n2 +2.0*n3 +n4)/6.0;
         }
 
         //Save values of X and Y
@@ -418,9 +418,9 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         //Calculate phi, Phi and Pi on next step
         #pragma omp parallel for
         for(int ir=0;ir<nR;ir++){
-            phi[ir] += (j1[ir]+2*j2[ir]+2*j3[ir]+j4[ir])*deltaT/6.;
-            Phi[ir] += (k1[ir]+2*k2[ir]+2*k3[ir]+k4[ir])*deltaT/6.;
-            Pi[ir]  += (l1[ir]+2*l2[ir]+2*l3[ir]+l4[ir])*deltaT/6.;
+            phi[ir] += (j1[ir]+2.0*j2[ir]+2.0*j3[ir]+j4[ir])*deltaT/6.0;
+            Phi[ir] += (k1[ir]+2.0*k2[ir]+2.0*k3[ir]+k4[ir])*deltaT/6.0;
+            Pi[ir]  += (l1[ir]+2.0*l2[ir]+2.0*l3[ir]+l4[ir])*deltaT/6.0;
         }
     }
     for(int ir=0;ir<(nR/SAVE_RES);ir++){

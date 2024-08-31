@@ -18,7 +18,6 @@ int omp_get_thread_num(){return 1;}
 #define E  2.718281828
 
 
-
 double** initialize_field(int fType,double* model_parameters,double deltaR,int maxR){
     double p0 = model_parameters[0];
     double r0 = model_parameters[1];
@@ -276,9 +275,11 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
                    +16.0*Gamma[3]* Pi[3]    -3.0*Gamma[4]* Pi[4])/(12.0*deltaR);
         l1[0] = (-25.0*Epsilon[0]*Phi[0] +48.0*Epsilon[1]*Phi[1] -36.0*Epsilon[2]*Phi[2]
                  +16.0*Epsilon[3]*Phi[3]  -3.0*Epsilon[4]*Phi[4])/(12.0*deltaR*r2[0]);
-        j1[1] = Gamma[1]*Pi[1];
-        k1[1] = (Gamma[4]*Pi[4] -6.0*Gamma[3]*Pi[3] +18.0*Gamma[2]*Pi[2] -10.0*Gamma[1]*Pi[1] -3.0*Gamma[0]*Pi[0])/(12.0*deltaR);
-        l1[1] = (Epsilon[4]*Phi[4] -6.0*Epsilon[3]*Phi[3] +18.0*Epsilon[2]*Phi[2] -10.0*Epsilon[1]*Phi[1] -3.0*Epsilon[0]*Phi[0])/(12.0*deltaR*r2[1]);
+        j1[1] =    Gamma[1]* Pi[1];
+        k1[1] =   (Gamma[4]* Pi[4]   -6.0*Gamma[3]* Pi[3]   +18.0*Gamma[2]* Pi[2]
+             -10.0*Gamma[1]* Pi[1]   -3.0*Gamma[0]* Pi[0])/(12.0*deltaR);
+        l1[1] = (Epsilon[4]*Phi[4] -6.0*Epsilon[3]*Phi[3] +18.0*Epsilon[2]*Phi[2]
+           -10.0*Epsilon[1]*Phi[1] -3.0*Epsilon[0]*Phi[0])/(12.0*deltaR*r2[1]);
         #pragma omp parallel for
         for(int ir=2;ir<nR-2;ir++){
             j1[ir] =     Gamma[ir  ]* Pi[ir  ];
@@ -537,7 +538,7 @@ int main(int argc, char* argv[]){
     model_parameters[3] = q;
     
     //Define simulation limits
-    double deltaR = 0.001;
+    double deltaR = 0.0001;
     int maxR = 70;
     if((argc>6) && atoi(argv[6])) maxR = atoi(argv[6]);
     int iterations = ITERATIONS;

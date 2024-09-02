@@ -31,7 +31,7 @@ double** initialize_field(int fType,double* model_parameters,double deltaR,int m
     double** return_values = malloc(sizeof(double*)*4);
 
     //Define r and calculate initial phi
-    r[0] = 1.0E-4;
+    r[0] = deltaR*0.1;
     for(int i=1;i<nR;i++)
         r[i] = i*deltaR;
     if(fType==0){
@@ -103,50 +103,50 @@ double** minkowski_iteration(double* r,double* phi,double* Phi,double* Pi,double
         save_count+=1;
         //Advance Pi and Phi using RK4
         //calculate k1 and l1
-        k1[0] = 0.5*(-3*Pi[0] +4*Pi[1] -Pi[2])/deltaT;
+        k1[0] = 0.5*(-3*Pi[0] +4*Pi[1] -Pi[2])/deltaR;
         k1[nR-1] = 0;
-        l1[0] = 0.5*(-3*r[0]*r[0]*Phi[0] +4*r[1]*r[1]*Phi[1] -r[2]*r[2]*Phi[2])/(deltaT*r[0]*r[0]);
+        l1[0] = 0.5*(-3*r[0]*r[0]*Phi[0] +4*r[1]*r[1]*Phi[1] -r[2]*r[2]*Phi[2])/(deltaR*r[0]*r[0]);
         l1[nR-1] = 0;
         #pragma omp parallel for
         for(int ir=1;ir<nR-1;ir++){
-            k1[ir] = 0.5*(Pi[ir+1] -Pi[ir-1])/deltaT;
-            l1[ir] = 0.5*(r[ir+1]*r[ir+1]*Phi[ir+1] -r[ir-1]*r[ir-1]*Phi[ir-1])/(deltaT*r[ir]*r[ir]);
+            k1[ir] = 0.5*(Pi[ir+1] -Pi[ir-1])/deltaR;
+            l1[ir] = 0.5*(r[ir+1]*r[ir+1]*Phi[ir+1] -r[ir-1]*r[ir-1]*Phi[ir-1])/(deltaR*r[ir]*r[ir]);
         }
         //calculate k2 and l2
-        k2[0] = 0.5*(-3*(Pi[0]+0.5*l1[0]*deltaT) +4*(Pi[1]+0.5*l1[1]*deltaT) -(Pi[2]+0.5*l1[2]*deltaT))/deltaT;
+        k2[0] = 0.5*(-3*(Pi[0]+0.5*l1[0]*deltaT) +4*(Pi[1]+0.5*l1[1]*deltaT) -(Pi[2]+0.5*l1[2]*deltaT))/deltaR;
         k2[nR-1] = 0;
-        l2[0] = 0.5*(-3*r[0]*r[0]*(Phi[0]+0.5*k1[0]*deltaT) +4*r[1]*r[1]*(Phi[1]+0.5*k1[1]*deltaT) -r[2]*r[2]*(Phi[2]+0.5*k1[2]*deltaT))/(deltaT*r[0]*r[0]);
+        l2[0] = 0.5*(-3*r[0]*r[0]*(Phi[0]+0.5*k1[0]*deltaT) +4*r[1]*r[1]*(Phi[1]+0.5*k1[1]*deltaT) -r[2]*r[2]*(Phi[2]+0.5*k1[2]*deltaT))/(deltaR*r[0]*r[0]);
         l2[nR-1] = 0;
         #pragma omp parallel for
         for(int ir=1;ir<nR-1;ir++){
-            k2[ir] = 0.5*((Pi[ir+1]+0.5*l1[ir+1]*deltaT) -(Pi[ir-1]+0.5*l1[ir-1]*deltaT))/deltaT;
-            l2[ir] = 0.5*(r[ir+1]*r[ir+1]*(Phi[ir+1]+0.5*k1[ir+1]*deltaT) -r[ir-1]*r[ir-1]*(Phi[ir-1]+0.5*k1[ir-1]*deltaT))/(deltaT*r[ir]*r[ir]);
+            k2[ir] = 0.5*((Pi[ir+1]+0.5*l1[ir+1]*deltaT) -(Pi[ir-1]+0.5*l1[ir-1]*deltaT))/deltaR;
+            l2[ir] = 0.5*(r[ir+1]*r[ir+1]*(Phi[ir+1]+0.5*k1[ir+1]*deltaT) -r[ir-1]*r[ir-1]*(Phi[ir-1]+0.5*k1[ir-1]*deltaT))/(deltaR*r[ir]*r[ir]);
         }
         //calculate k3 and l3
-        k3[0] = 0.5*(-3*(Pi[0]+0.5*l2[0]*deltaT) +4*(Pi[1]+0.5*l2[1]*deltaT) -(Pi[2]+0.5*l2[2]*deltaT))/deltaT;
+        k3[0] = 0.5*(-3*(Pi[0]+0.5*l2[0]*deltaT) +4*(Pi[1]+0.5*l2[1]*deltaT) -(Pi[2]+0.5*l2[2]*deltaT))/deltaR;
         k3[nR-1] = 0;
-        l3[0] = 0.5*(-3*r[0]*r[0]*(Phi[0]+0.5*k2[0]*deltaT) +4*r[1]*r[1]*(Phi[1]+0.5*k2[1]*deltaT) -r[2]*r[2]*(Phi[2]+0.5*k2[2]*deltaT))/(deltaT*r[0]*r[0]);
+        l3[0] = 0.5*(-3*r[0]*r[0]*(Phi[0]+0.5*k2[0]*deltaT) +4*r[1]*r[1]*(Phi[1]+0.5*k2[1]*deltaT) -r[2]*r[2]*(Phi[2]+0.5*k2[2]*deltaT))/(deltaR*r[0]*r[0]);
         l3[nR-1] = 0;
         #pragma omp parallel for
         for(int ir=1;ir<nR-1;ir++){
-            k3[ir] = 0.5*((Pi[ir+1]+0.5*l2[ir+1]*deltaT) -(Pi[ir-1]+0.5*l2[ir-1]*deltaT))/deltaT;
-            l3[ir] = 0.5*(r[ir+1]*r[ir+1]*(Phi[ir+1]+0.5*k2[ir+1]*deltaT) -r[ir-1]*r[ir-1]*(Phi[ir-1]+0.5*k2[ir-1]*deltaT))/(deltaT*r[ir]*r[ir]);
+            k3[ir] = 0.5*((Pi[ir+1]+0.5*l2[ir+1]*deltaT) -(Pi[ir-1]+0.5*l2[ir-1]*deltaT))/deltaR;
+            l3[ir] = 0.5*(r[ir+1]*r[ir+1]*(Phi[ir+1]+0.5*k2[ir+1]*deltaT) -r[ir-1]*r[ir-1]*(Phi[ir-1]+0.5*k2[ir-1]*deltaT))/(deltaR*r[ir]*r[ir]);
         }
         //calculate k4 and l4
-        k4[0] = 0.5*(-3*(Pi[0]+l3[0]*deltaT) +4*(Pi[1]+l3[1]*deltaT) -(Pi[2]+l3[2]*deltaT))/deltaT;
+        k4[0] = 0.5*(-3*(Pi[0]+l3[0]*deltaT) +4*(Pi[1]+l3[1]*deltaT) -(Pi[2]+l3[2]*deltaT))/deltaR;
         k4[nR-1] = 0;
-        l4[0] = 0.5*(-3*r[0]*r[0]*(Phi[0]+k3[0]*deltaT) +4*r[1]*r[1]*(Phi[1]+k3[1]*deltaT) -r[2]*r[2]*(Phi[2]+k3[2]*deltaT))/(deltaT*r[0]*r[0]);
+        l4[0] = 0.5*(-3*r[0]*r[0]*(Phi[0]+k3[0]*deltaT) +4*r[1]*r[1]*(Phi[1]+k3[1]*deltaT) -r[2]*r[2]*(Phi[2]+k3[2]*deltaT))/(deltaR*r[0]*r[0]);
         l4[nR-1] = 0;
         #pragma omp parallel for
         for(int ir=1;ir<nR-1;ir++){
-            k4[ir] = 0.5*((Pi[ir+1]+l3[ir+1]*deltaT) -(Pi[ir-1]+l3[ir-1]*deltaT))/deltaT;
-            l4[ir] = 0.5*(r[ir+1]*r[ir+1]*(Phi[ir+1]+k3[ir+1]*deltaT) -r[ir-1]*r[ir-1]*(Phi[ir-1]+k3[ir-1]*deltaT))/(deltaT*r[ir]*r[ir]);
+            k4[ir] = 0.5*((Pi[ir+1]+l3[ir+1]*deltaT) -(Pi[ir-1]+l3[ir-1]*deltaT))/deltaR;
+            l4[ir] = 0.5*(r[ir+1]*r[ir+1]*(Phi[ir+1]+k3[ir+1]*deltaT) -r[ir-1]*r[ir-1]*(Phi[ir-1]+k3[ir-1]*deltaT))/(deltaR*r[ir]*r[ir]);
         }
         //Calculate phi, Phi and Pi on next step
         #pragma omp parallel for
         for(int ir=0;ir<nR;ir++){
-            Phi[ir] += (k1[ir]+2*k2[ir]+2*k3[ir]+k4[ir])*deltaT/6.;
-            Pi[ir]  += (l1[ir]+2*l2[ir]+2*l3[ir]+l4[ir])*deltaT/6.;
+            Phi[ir] += (k1[ir]+2*k2[ir]+2*k3[ir]+k4[ir])*deltaT/6.0;
+            Pi[ir]  += (l1[ir]+2*l2[ir]+2*l3[ir]+l4[ir])*deltaT/6.0;
         }
         for(int ir=nR-2;ir>-1;ir+=-1){
             phi[ir] = phi[ir+1] - Phi[ir]*deltaR; //phi is only calculated for visualization purposes
@@ -289,10 +289,12 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
                   -8.0*Epsilon[ir-1]*Phi[ir-1]     +Epsilon[ir-2]*Phi[ir-2])/(12.0*deltaR*r2[ir]);
         }
         j1[nR-2] =     Gamma[nR-2]* Pi[nR-2];
-        k1[nR-2] =   (-Gamma[nR-5]* Pi[nR-5]   +6.0*Gamma[nR-4]* Pi[nR-4]   -18.0*Gamma[nR-3]* Pi[nR-3] 
-                 +10.0*Gamma[nR-2]* Pi[nR-2]   +3.0*Gamma[nR-1]* Pi[nR-1])/(12.0*deltaR);
-        l1[nR-2] = (-Epsilon[nR-5]*Phi[nR-5] +6.0*Epsilon[nR-4]*Phi[nR-4] -18.0*Epsilon[nR-3]*Phi[nR-3] 
-               +10.0*Epsilon[nR-2]*Phi[nR-2] +3.0*Epsilon[nR-1]*Phi[nR-1])/(12.0*deltaR*r2[nR-2]);
+        k1[nR-2] = 0;
+        //k1[nR-2] =   (-Gamma[nR-5]* Pi[nR-5]   +6.0*Gamma[nR-4]* Pi[nR-4]   -18.0*Gamma[nR-3]* Pi[nR-3] 
+        //         +10.0*Gamma[nR-2]* Pi[nR-2]   +3.0*Gamma[nR-1]* Pi[nR-1])/(12.0*deltaR);
+        k1[nR-2] = 0;
+        //l1[nR-2] = (-Epsilon[nR-5]*Phi[nR-5] +6.0*Epsilon[nR-4]*Phi[nR-4] -18.0*Epsilon[nR-3]*Phi[nR-3] 
+        //       +10.0*Epsilon[nR-2]*Phi[nR-2] +3.0*Epsilon[nR-1]*Phi[nR-1])/(12.0*deltaR*r2[nR-2]);
         j1[nR-1] =     Gamma[nR-1]* Pi[nR-1];
         k1[nR-1] = 0;
         //k1[nR-1] = phi[nR-1]/r2[nR-1] -Phi[nR-1]/r[nR-1]-0.5*(3*Phi[nR-1] -4*Phi[nR-2] +Phi[nR-3]);
@@ -322,12 +324,14 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
                   -8.0*Epsilon[ir-1]*(Phi[ir-1]+0.5*k1[ir-1]*deltaT)     +Epsilon[ir-2]*(Phi[ir-2]+0.5*k1[ir-2]*deltaT))/(12.0*deltaR*r2[ir]);
         }
         j2[nR-2] =     Gamma[nR-2]*( Pi[nR-2]+0.5*l1[nR-2]*deltaT);
-        k2[nR-2] =   (-Gamma[nR-5]*( Pi[nR-5]+0.5*l1[nR-5]*deltaT)    +6.0*Gamma[nR-4]*( Pi[nR-4]+0.5*l1[nR-4]*deltaT)
-                 -18.0*Gamma[nR-3]*( Pi[nR-3]+0.5*l1[nR-3]*deltaT)   +10.0*Gamma[nR-2]*( Pi[nR-2]+0.5*l1[nR-2]*deltaT)
-                  +3.0*Gamma[nR-1]*( Pi[nR-1]+0.5*l1[nR-1]*deltaT))/(12.0*deltaR);
-        l2[nR-2] = (-Epsilon[nR-5]*(Phi[nR-5]+0.5*k1[nR-5]*deltaT)  +6.0*Epsilon[nR-4]*(Phi[nR-4]+0.5*k1[nR-4]*deltaT)
-               -18.0*Epsilon[nR-3]*(Phi[nR-3]+0.5*k1[nR-3]*deltaT) +10.0*Epsilon[nR-2]*(Phi[nR-2]+0.5*k1[nR-2]*deltaT)
-                +3.0*Epsilon[nR-1]*(Phi[nR-1]+0.5*k1[nR-1]*deltaT))/(12.0*deltaR);
+        k2[nR-2] = 0;
+        //k2[nR-2] =   (-Gamma[nR-5]*( Pi[nR-5]+0.5*l1[nR-5]*deltaT)    +6.0*Gamma[nR-4]*( Pi[nR-4]+0.5*l1[nR-4]*deltaT)
+        //         -18.0*Gamma[nR-3]*( Pi[nR-3]+0.5*l1[nR-3]*deltaT)   +10.0*Gamma[nR-2]*( Pi[nR-2]+0.5*l1[nR-2]*deltaT)
+        //          +3.0*Gamma[nR-1]*( Pi[nR-1]+0.5*l1[nR-1]*deltaT))/(12.0*deltaR);
+        l2[nR-2] = 0;
+        //l2[nR-2] = (-Epsilon[nR-5]*(Phi[nR-5]+0.5*k1[nR-5]*deltaT)  +6.0*Epsilon[nR-4]*(Phi[nR-4]+0.5*k1[nR-4]*deltaT)
+        //       -18.0*Epsilon[nR-3]*(Phi[nR-3]+0.5*k1[nR-3]*deltaT) +10.0*Epsilon[nR-2]*(Phi[nR-2]+0.5*k1[nR-2]*deltaT)
+        //        +3.0*Epsilon[nR-1]*(Phi[nR-1]+0.5*k1[nR-1]*deltaT))/(12.0*deltaR);
         j2[nR-1] = Gamma[nR-1]*(Pi[nR-1]+0.5*l1[nR-1]*deltaT);
         k2[nR-1] = 0;
         //k2[nR-1] = (phi[nR-1]+0.5*j1[nR-1]*deltaT)/r2[nR-1] -(Phi[nR-1]+0.5*k1[nR-1]*deltaT)/r[nR-1]
@@ -360,12 +364,14 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
                   -8.0*Epsilon[ir-1]*(Phi[ir-1]+0.5*k2[ir-1]*deltaT)     +Epsilon[ir-2]*(Phi[ir-2]+0.5*k2[ir-2]*deltaT))/(12.0*deltaR*r2[ir]);
         }
         j3[nR-2] =     Gamma[nR-2]*( Pi[nR-2]+0.5*l2[nR-2]*deltaT);
-        k3[nR-2] =   (-Gamma[nR-5]*( Pi[nR-5]+0.5*l2[nR-5]*deltaT)    +6.0*Gamma[nR-4]*( Pi[nR-4]+0.5*l2[nR-4]*deltaT)
-                 -18.0*Gamma[nR-3]*( Pi[nR-3]+0.5*l2[nR-3]*deltaT)   +10.0*Gamma[nR-2]*( Pi[nR-2]+0.5*l2[nR-2]*deltaT)
-                  +3.0*Gamma[nR-1]*( Pi[nR-1]+0.5*l2[nR-1]*deltaT))/(12.0*deltaR);
-        l3[nR-2] = (-Epsilon[nR-5]*(Phi[nR-5]+0.5*k2[nR-5]*deltaT)  +6.0*Epsilon[nR-4]*(Phi[nR-4]+0.5*k2[nR-4]*deltaT)
-               -18.0*Epsilon[nR-3]*(Phi[nR-3]+0.5*k2[nR-3]*deltaT) +10.0*Epsilon[nR-2]*(Phi[nR-2]+0.5*k2[nR-2]*deltaT)
-                +3.0*Epsilon[nR-1]*(Phi[nR-1]+0.5*k2[nR-1]*deltaT))/(12.0*deltaR);
+        k3[nR-2] = 0;
+        //k3[nR-2] =   (-Gamma[nR-5]*( Pi[nR-5]+0.5*l2[nR-5]*deltaT)    +6.0*Gamma[nR-4]*( Pi[nR-4]+0.5*l2[nR-4]*deltaT)
+        //         -18.0*Gamma[nR-3]*( Pi[nR-3]+0.5*l2[nR-3]*deltaT)   +10.0*Gamma[nR-2]*( Pi[nR-2]+0.5*l2[nR-2]*deltaT)
+        //          +3.0*Gamma[nR-1]*( Pi[nR-1]+0.5*l2[nR-1]*deltaT))/(12.0*deltaR);
+        l3[nR-2] = 0;
+        //l3[nR-2] = (-Epsilon[nR-5]*(Phi[nR-5]+0.5*k2[nR-5]*deltaT)  +6.0*Epsilon[nR-4]*(Phi[nR-4]+0.5*k2[nR-4]*deltaT)
+        //       -18.0*Epsilon[nR-3]*(Phi[nR-3]+0.5*k2[nR-3]*deltaT) +10.0*Epsilon[nR-2]*(Phi[nR-2]+0.5*k2[nR-2]*deltaT)
+        //        +3.0*Epsilon[nR-1]*(Phi[nR-1]+0.5*k2[nR-1]*deltaT))/(12.0*deltaR);
         j3[nR-1] = Gamma[nR-1]*(Pi[nR-1]+0.5*l2[nR-1]*deltaT);
         k3[nR-1] = 0;
         //k3[nR-1] = (phi[nR-1]+0.5*j2[nR-1]*deltaT)/r2[nR-1] -(Phi[nR-1]+0.5*k2[nR-1]*deltaT)/r[nR-1]
@@ -398,12 +404,14 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
                   -8.0*Epsilon[ir-1]*(Phi[ir-1]+k3[ir-1]*deltaT)     +Epsilon[ir-2]*(Phi[ir-2]+k3[ir-2]*deltaT))/(12.0*deltaR*r2[ir]);
         }
         j4[nR-2] =     Gamma[nR-2]*( Pi[nR-2]+l3[nR-2]*deltaT);
-        k4[nR-2] =   (-Gamma[nR-5]*( Pi[nR-5]+l3[nR-5]*deltaT)    +6.0*Gamma[nR-4]*( Pi[nR-4]+l3[nR-4]*deltaT)
-                 -18.0*Gamma[nR-3]*( Pi[nR-3]+l3[nR-3]*deltaT)   +10.0*Gamma[nR-2]*( Pi[nR-2]+l3[nR-2]*deltaT)
-                  +3.0*Gamma[nR-1]*( Pi[nR-1]+l3[nR-1]*deltaT))/(12.0*deltaR);
-        l4[nR-2] = (-Epsilon[nR-5]*(Phi[nR-5]+k3[nR-5]*deltaT)  +6.0*Epsilon[nR-4]*(Phi[nR-4]+k3[nR-4]*deltaT)
-               -18.0*Epsilon[nR-3]*(Phi[nR-3]+k3[nR-3]*deltaT) +10.0*Epsilon[nR-2]*(Phi[nR-2]+k3[nR-2]*deltaT)
-                +3.0*Epsilon[nR-1]*(Phi[nR-1]+k3[nR-1]*deltaT))/(12.0*deltaR);
+        k4[nR-2] = 0;
+        //k4[nR-2] =   (-Gamma[nR-5]*( Pi[nR-5]+l3[nR-5]*deltaT)    +6.0*Gamma[nR-4]*( Pi[nR-4]+l3[nR-4]*deltaT)
+        //         -18.0*Gamma[nR-3]*( Pi[nR-3]+l3[nR-3]*deltaT)   +10.0*Gamma[nR-2]*( Pi[nR-2]+l3[nR-2]*deltaT)
+        //          +3.0*Gamma[nR-1]*( Pi[nR-1]+l3[nR-1]*deltaT))/(12.0*deltaR);
+        l4[nR-2] = 0;
+        //l4[nR-2] = (-Epsilon[nR-5]*(Phi[nR-5]+k3[nR-5]*deltaT)  +6.0*Epsilon[nR-4]*(Phi[nR-4]+k3[nR-4]*deltaT)
+        //       -18.0*Epsilon[nR-3]*(Phi[nR-3]+k3[nR-3]*deltaT) +10.0*Epsilon[nR-2]*(Phi[nR-2]+k3[nR-2]*deltaT)
+        //        +3.0*Epsilon[nR-1]*(Phi[nR-1]+k3[nR-1]*deltaT))/(12.0*deltaR);
         j4[nR-1] = Gamma[nR-1]*(Pi[nR-1]+l3[nR-1]*deltaT);
         k4[nR-1] = 0;
         //k4[nR-1] = (phi[nR-1]+j3[nR-1]*deltaT)/r2[nR-1] -(Phi[nR-1]+k3[nR-1]*deltaT)/r[nR-1]
@@ -538,7 +546,7 @@ int main(int argc, char* argv[]){
     model_parameters[3] = q;
     
     //Define simulation limits
-    double deltaR = 0.0001;
+    double deltaR = 0.001;
     int maxR = 70;
     if((argc>6) && atoi(argv[6])) maxR = atoi(argv[6]);
     int iterations = ITERATIONS;

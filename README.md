@@ -15,13 +15,15 @@ value is assigned. The arguments are the following:
 - iterations (int)  Total number of iterations to run the simulation
 - nThreads   (int)  Number of threads used for paralelization
 
-The program outputs a file after finishing which contains the following:
+The program outputs 2 files after finishing, the first one contains the following:
 - Various information about the parameters given and the runtime
 - The values of the radial space coordinate, r
 - A history of the scalar field φ
 - A history of the scalar field Φ, the derivative dφ/dr
 - A history of the scalar field Π, the derivative (a/alpha)*(dφ/dt)
-It also outputs a second file with the mass of the field in every saved iteration, this is supposed to be a constant
+
+The second one contains the following:
+- The mass of the field in every saved iteration, this is supposed to be a constant
 
 
 Not every time step is saved, nor every value of r. 

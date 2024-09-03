@@ -1,6 +1,5 @@
 The C files execute the simulation, from a given initial condition
 
-- Colapso_MinkowskiRK4.c - simulates on a minkowski spacetime with RK4 integration (Obsolete)
 - Colapso_RK4.c - uses RK4 integration to simulate on the spacetime given by Choptuik (1993) or minkowski, this behaviour can
 be modified by setting the constant MINKOWSKI to 0 (false) or 1 (true) before compilation.
 
@@ -22,6 +21,7 @@ The program outputs a file after finishing which contains the following:
 - A history of the scalar field φ
 - A history of the scalar field Φ, the derivative dφ/dr
 - A history of the scalar field Π, the derivative (a/alpha)*(dφ/dt)
+It also outputs a second file with the mass of the field in every saved iteration, this is supposed to be a constant
 
 
 Not every time step is saved, nor every value of r. 

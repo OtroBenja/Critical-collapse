@@ -220,7 +220,7 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
     for(int i=0;i<iterations;i++){
         
         //If not on mikowski metric, solve a and alpha with known values of PHI and PI using RK4
-        if(MINKOWSKI){
+        if(MINKOWSKI == 0){
             //Useful auxiliar variable
             #pragma omp parallel for
             for(int ir=0;ir<nR;ir++)

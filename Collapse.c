@@ -8,10 +8,11 @@
 int omp_get_num_threads(){return 1;}
 int omp_get_max_threads(){return 1;}
 int omp_get_thread_num(){return 1;}
+void omp_set_num_threads(){return;}
 #endif
 
 #define MASS 1
-#define METRIC 1 // 0 = minkowski; 1 = choptuik; 2 = modified choptuik
+#define METRIC 2 // 0 = minkowski; 1 = choptuik; 2 = modified choptuik
 #define SAVE_RES 500
 #define SAVE_ITERATION 100
 #define ITERATIONS 20000
@@ -42,6 +43,14 @@ double** initialize_field(int fType,double* model_parameters,double deltaR,int m
     if(fType==1){
         for(int i=0;i<nR;i++)
             phi[i] = p0*pow(r[i],3)*pow(E,-pow((r[i]-r0)/d,q));
+    }
+    if(fType==2){
+        for(int i=0;i<nR;i++)
+            phi[i] = p0;
+    }
+    if(fType==3){
+        for(int i=0;i<nR;i++)
+            phi[i] = p0*r[i];
     }
 
     //Calculate initial Phi
@@ -572,8 +581,10 @@ void print_data(double** hist,int fType,double* model_parameters,int iterations,
          if(METRIC == 0) fprintf(data,"Metric: Minkowski\n");
     else if(METRIC == 1) fprintf(data,"Metric: Choptuik\n");
     else if(METRIC == 2) fprintf(data,"Metric: Modified Choptuik\n" );
-    if(fType) fprintf(data,"Function type: Exponential\n");
-    else fprintf(data,"Function type: Hyperbolic Tan\n");
+         if(fType == 0) fprintf(data,"Function type: Hyperbolic Tan\n");
+    else if(fType == 1) fprintf(data,"Function type: Exponential\n");
+    else if(fType == 2) fprintf(data,"Function type: Constant\n");
+    else if(fType == 3) fprintf(data,"Function type: Linear\n");
     fprintf(data,"p0: %lf\n",p0);
     fprintf(data,"r0: %lf\n",r0);
     fprintf(data,"d: %lf\n",d);

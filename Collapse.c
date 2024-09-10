@@ -581,6 +581,8 @@ void print_data(double** hist,int fType,double* model_parameters,int iterations,
          if(METRIC == 0) fprintf(data,"Metric: Minkowski\n");
     else if(METRIC == 1) fprintf(data,"Metric: Choptuik\n");
     else if(METRIC == 2) fprintf(data,"Metric: Modified Choptuik\n" );
+    else if(METRIC == 3) fprintf(data,"Metric: Choptuik Euler\n");
+    else if(METRIC == 4) fprintf(data,"Metric: Modified Choptuik Euler\n" );
          if(fType == 0) fprintf(data,"Function type: Hyperbolic Tan\n");
     else if(fType == 1) fprintf(data,"Function type: Exponential\n");
     else if(fType == 2) fprintf(data,"Function type: Constant\n");

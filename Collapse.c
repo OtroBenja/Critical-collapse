@@ -12,11 +12,11 @@ void omp_set_num_threads(){return;}
 #endif
 
 #define MASS 1
-#define METRIC 1 // 0 = minkowski; 1 = choptuik; 2 = modified choptuik
-#define SAVE_MODE 0 // 0 = save uniformly on every SAVE_RES and SAVE_ITERATION ; 1 = save all points after FIRST_ITERATION and with r > MIN_R
+#define METRIC 2 // 0 = minkowski; 1 = choptuik; 2 = modified choptuik
+#define SAVE_MODE 1 // 0 = save uniformly on every SAVE_RES and SAVE_ITERATION ; 1 = save all points after FIRST_ITERATION and with r > MIN_R
 #define SAVE_RES 500
 #define SAVE_ITERATION 100
-#define FIRST_ITERATION 75000
+#define FIRST_ITERATION 77500
 #define MIN_R 45
 #define ITERATIONS 80000
 #define PI 3.141592653

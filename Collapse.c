@@ -11,13 +11,13 @@ int omp_get_thread_num(){return 1;}
 void omp_set_num_threads(){return;}
 #endif
 
-#define MASS 1
-#define METRIC 2 // 0 = minkowski; 1 = choptuik; 2 = modified choptuik
-#define SAVE_MODE 1 // 0 = save uniformly on every SAVE_RES and SAVE_ITERATION ; 1 = save all points after FIRST_ITERATION and with r > MIN_R
-#define SAVE_RES 500
-#define SAVE_ITERATION 100
-#define FIRST_ITERATION 77500
-#define MIN_R 45
+#define MASS 0
+#define METRIC 1 // 0 = minkowski; 1 = choptuik; 2 = modified choptuik
+#define SAVE_MODE 0 // 0 = save uniformly on every SAVE_RES and SAVE_ITERATION ; 1 = save all points after FIRST_ITERATION and with r > MIN_R
+#define SAVE_RES 5000
+#define SAVE_ITERATION 1000
+#define FIRST_ITERATION 77900
+#define MIN_R 50
 #define ITERATIONS 80000
 #define PI 3.141592653
 #define E  2.718281828
@@ -138,7 +138,6 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         r2[ir] = r[ir]*r[ir];
         Epsilon[ir] = r2[ir];
     }
-    printf("Pre-iteration");
     for(int i=0;i<iterations;i++){
         
         //If on minkowski metric, do not solve a and alpha

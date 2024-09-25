@@ -13,12 +13,13 @@ void omp_set_num_threads(){return;}
 
 #define MASS 0
 #define METRIC 1 // 0 = minkowski; 1 = choptuik; 2 = modified choptuik
-#define SAVE_MODE 1 // 0 = save uniformly on every SAVE_RES and SAVE_ITERATION ; 1 = save all points after FIRST_ITERATION and with r > MIN_R
+#define SAVE_MODE 0 // 0 = save uniformly on every SAVE_RES and SAVE_ITERATION ; 1 = save all points after FIRST_ITERATION and with r > MIN_R
 #define SAVE_RES 50
-#define SAVE_ITERATION 10
+#define SAVE_ITERATION 1
 #define FIRST_ITERATION 779500
 #define MIN_R 50
 #define ITERATIONS 78100
+#define EPSILON 0.1 //Kreiss-Oliger dampening, must be smaller than 0.15625
 #define PI 3.141592653
 #define E  2.718281828
 
@@ -157,32 +158,37 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
     int saveNR = (maxR-MIN_R)/deltaR;
     double deltaT = deltaR/5.;
     double mass;
-    double* a = malloc(sizeof(double)*nR);
-    double* alpha = malloc(sizeof(double)*nR);
-    double* Beta = malloc(sizeof(double)*nR);
-    double* Beta1_2 = malloc(sizeof(double)*nR);
-    double* Gamma = malloc(sizeof(double)*nR);
-    double* Epsilon = malloc(sizeof(double)*nR);
-    double* Zeta = malloc(sizeof(double)*nR);
-    double* r2 = malloc(sizeof(double)*nR);
-    double* j1 = malloc(sizeof(double)*nR);
-    double* k1 = malloc(sizeof(double)*nR);
-    double* l1 = malloc(sizeof(double)*nR);
-    double* j2 = malloc(sizeof(double)*nR);
-    double* k2 = malloc(sizeof(double)*nR);
-    double* l2 = malloc(sizeof(double)*nR);
-    double* j3 = malloc(sizeof(double)*nR);
-    double* k3 = malloc(sizeof(double)*nR);
-    double* l3 = malloc(sizeof(double)*nR);
-    double* j4 = malloc(sizeof(double)*nR);
-    double* k4 = malloc(sizeof(double)*nR);
-    double* l4 = malloc(sizeof(double)*nR);
+    double *a = malloc(sizeof(double)*nR);
+    double *alpha = malloc(sizeof(double)*nR);
+    double *Beta = malloc(sizeof(double)*nR);
+    double *Beta1_2 = malloc(sizeof(double)*nR);
+    double *Gamma = malloc(sizeof(double)*nR);
+    double *Epsilon = malloc(sizeof(double)*nR);
+    double *Zeta = malloc(sizeof(double)*nR);
+    double *Phi_ko = malloc(sizeof(double)*nR);
+    double *Pi_ko = malloc(sizeof(double)*nR);
+    double ko_c = pow(-1,3)*EPSILON/5.;
+    double *r2 = malloc(sizeof(double)*nR);
+    double *j1 = malloc(sizeof(double)*nR);
+    double *k1 = malloc(sizeof(double)*nR);
+    double *l1 = malloc(sizeof(double)*nR);
+    double *j2 = malloc(sizeof(double)*nR);
+    double *k2 = malloc(sizeof(double)*nR);
+    double *l2 = malloc(sizeof(double)*nR);
+    double *j3 = malloc(sizeof(double)*nR);
+    double *k3 = malloc(sizeof(double)*nR);
+    double *l3 = malloc(sizeof(double)*nR);
+    double *j4 = malloc(sizeof(double)*nR);
+    double *k4 = malloc(sizeof(double)*nR);
+    double *l4 = malloc(sizeof(double)*nR);
     double m1, n1, m2, n2, m3, n3, m4, n4;
-    double* m = malloc(sizeof(double)*4*nR);
-    //double* m_p1 = malloc(sizeof(double)*4);
-    double* n = malloc(sizeof(double)*4);
+    double *m, *n;
+    if(METRIC==5){
+        m = malloc(sizeof(double)*4*nR);
+        n = malloc(sizeof(double)*4);
+    }
     double temp;
-    double* temp_pointer;
+    double *temp_pointer;
     double *Rhistory, *Fhistory, *Xhistory, *Yhistory, *Ahistory, *Bhistory, *Mhistory;
     if(SAVE_MODE == 0){
         Rhistory = malloc(sizeof(double)*(nR/SAVE_RES));
@@ -584,12 +590,29 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         //            Gamma[nR-3]*Gamma[nR-3]*(Pi[nR-3]+l3[nR-1]*deltaT)) +
         //           -0.5*(phi[nR-1]+j3[nR-1]*deltaT)*(3*Gamma[nR-1] -4*Gamma[nR-2] +Gamma[nR-3]) ;
 
+        //Calculate Kreiss-Oliger dissipation of 6th order for next step
+        Phi_ko[0] = ko_c*(Phi[0]-6.0*Phi[1]+15.0*Phi[2]-20.0*Phi[3]+15.0*Phi[4]-6.0*Phi[5]+Phi[6]);
+        Pi_ko[ 0] = ko_c*( Pi[0]-6.0* Pi[1]+15.0* Pi[2]-20.0* Pi[3]+15.0* Pi[4]-6.0* Pi[5]+ Pi[6]);
+        Phi_ko[1] = ko_c*(Phi[0]-6.0*Phi[1]+15.0*Phi[2]-20.0*Phi[3]+15.0*Phi[4]-6.0*Phi[5]+Phi[6]);
+        Pi_ko[ 1] = ko_c*( Pi[0]-6.0* Pi[1]+15.0* Pi[2]-20.0* Pi[3]+15.0* Pi[4]-6.0* Pi[5]+ Pi[6]);
+        Phi_ko[2] = ko_c*(Phi[0]-6.0*Phi[1]+15.0*Phi[2]-20.0*Phi[3]+15.0*Phi[4]-6.0*Phi[5]+Phi[6]);
+        Pi_ko[ 2] = ko_c*( Pi[0]-6.0* Pi[1]+15.0* Pi[2]-20.0* Pi[3]+15.0* Pi[4]-6.0* Pi[5]+ Pi[6]);
+        for(int ir=3;ir<nR-3;ir++){
+        Phi_ko[ir] = ko_c*(Phi[ir-3]-6.0*Phi[ir-2]+15.0*Phi[ir-1]-20.0*Phi[ir]+15.0*Phi[ir+1]-6.0*Phi[ir+2]+Phi[ir+3]);
+        Pi_ko[ir]  = ko_c*( Pi[ir-3]-6.0* Pi[ir-2]+15.0* Pi[ir-1]-20.0* Pi[ir]+15.0* Pi[ir+1]-6.0* Pi[ir+2]+ Pi[ir+3]);
+        }
+        Phi_ko[nR-3] = ko_c*(Phi[nR-6]-6.0*Phi[nR-5]+15.0*Phi[nR-4]-20.0*Phi[nR-3]+15.0*Phi[nR-2]-6.0*Phi[nR-1]);
+        Pi_ko[ nR-3] = ko_c*( Pi[nR-6]-6.0* Pi[nR-5]+15.0* Pi[nR-4]-20.0* Pi[nR-3]+15.0* Pi[nR-2]-6.0* Pi[nR-1]);
+        Phi_ko[nR-2] = ko_c*(Phi[nR-5]-6.0*Phi[nR-4]+15.0*Phi[nR-3]-20.0*Phi[nR-2]+15.0*Phi[nR-1]);
+        Pi_ko[ nR-2] = ko_c*( Pi[nR-5]-6.0* Pi[nR-4]+15.0* Pi[nR-3]-20.0* Pi[nR-2]+15.0* Pi[nR-1]);
+        Phi_ko[nR-1] = ko_c*(Phi[nR-4]-6.0*Phi[nR-3]+15.0*Phi[nR-2]-20.0*Phi[nR-1]);
+        Pi_ko[ nR-1] = ko_c*( Pi[nR-4]-6.0* Pi[nR-3]+15.0* Pi[nR-2]-20.0* Pi[nR-1]);
 
         //Calculate phi, Phi and Pi on next step
         //#pragma omp parallel for
         for(int ir=0;ir<nR;ir++){
-            phi[ir] += (j1[ir]+2.0*(j2[ir]+j3[ir])+j4[ir])*deltaT/6.0;
-            Phi[ir] += (k1[ir]+2.0*(k2[ir]+k3[ir])+k4[ir])*deltaT/6.0;
+            phi[ir] += (j1[ir]+2.0*(j2[ir]+j3[ir])+j4[ir])*deltaT/6.0 -Phi_ko[ir];
+            Phi[ir] += (k1[ir]+2.0*(k2[ir]+k3[ir])+k4[ir])*deltaT/6.0 -Phi_ko[ir];
             Pi[ir]  += (l1[ir]+2.0*(l2[ir]+l3[ir])+l4[ir])*deltaT/6.0;
         }
     }

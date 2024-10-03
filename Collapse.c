@@ -13,13 +13,13 @@ void omp_set_num_threads(){return;}
 
 #define MASS 0
 #define METRIC 1 // 0 = minkowski; 1 = choptuik; 2 = modified choptuik
-#define SAVE_MODE 0 // 0 = save uniformly on every SAVE_RES and SAVE_ITERATION ; 1 = save all points after FIRST_ITERATION and with r > MIN_R
+#define SAVE_MODE 1 // 0 = save uniformly on every SAVE_RES and SAVE_ITERATION ; 1 = save all points after FIRST_ITERATION and with r > MIN_R
 #define SAVE_RES 500
 #define SAVE_ITERATION 100
-#define FIRST_ITERATION 779500
+#define FIRST_ITERATION 77950
 #define MIN_R 50
 #define ITERATIONS 78100
-#define EPSILON 0.0 // Default Kreiss-Oliger dampening, must be smaller than 0.15625
+#define EPSILON 0.0 // Default Kreiss-Oliger dampening
 #define PI 3.141592653
 #define E  2.718281828
 
@@ -79,6 +79,7 @@ double** initialize_field(int fType,double* model_parameters,double deltaR,int m
     return return_values;
 }
 
+//This function is not currently in use
 void metric_iteration(double* Beta, double* Beta1_2, double* a, double* alpha, double* r, double* r2,
     double* Gamma, double* Epsilon, double* Zeta, int nR, double deltaR, int method, int metric){
     

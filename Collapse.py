@@ -1,8 +1,9 @@
 import numpy as np
 from numba import njit
 
-deltaR = 0.001
+deltaR = 0.01
 deltaT = deltaR/5.0
+iterations = 8000
 
 def initialize_r(r0,maxR):
     R = np.arange(0,maxR,deltaR)
@@ -14,7 +15,7 @@ def initialize_fields(R, p0 = 0.000008):
     Phi = np.empty_like(R)
     Pi  = np.zeros_like(R)
 
-    phi = p0*(R**3)*(np.e**-((R-20)/3**2))
+    phi = p0*(R**3)*(np.e**(-((R-20)/3)**2))
 
     #Calcular derivada
     Phi[   0] = 0
@@ -138,17 +139,15 @@ def iterate(R,Phi,Pi,Phi_hist,A_hist,iter):
         k4[-2] = 0
         l4[-1] = 0
 
-        Phi += (k1+2.0*k2+2.0*k3+k4)/6.0
-        Pi  += (l1+2.0*l2+2.0*l3+l4)/6.0
+        Phi = Phi + (k1+2.0*k2+2.0*k3+k4)/6.0
+        Pi  = Pi + (l1+2.0*l2+2.0*l3+l4)/6.0
     
 
-r = initialize_r(deltaR*0.01,maxR = 100)
+r = initialize_r(deltaR*0.1,maxR = 50)
 phi, Phi, Pi = initialize_fields(r)
 
-iterations = 900
 Phi_hist = np.empty((iterations,len(r)))
 A_hist = np.empty((iterations,len(r)))
-
 
 print('Compiling functions...')
 iterate(r,Phi,Pi,Phi_hist,A_hist,2)
@@ -160,6 +159,8 @@ print('Iteration finished')
 Phi_file = open('Phi.bin','wb')
 A_file = open('A.bin','wb')
 R_file = open('R.bin','wb')
+Phi_hist = Phi_hist.flatten()
+A_hist = A_hist.flatten()
 Phi_file.write(bytes(Phi_hist))
 A_file.write(bytes(A_hist))
 R_file.write(bytes(r))

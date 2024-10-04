@@ -84,8 +84,8 @@ void metric_iterationRK4(double *r,double *Phi,double *Pi,double *a, double *alp
         m4 = deltaR*(    a[ir]+m3)*(2.0*PI*(r[ir]+deltaR)*(Phi[ir+1]*Phi[ir+1]+Pi[ir+1]*Pi[ir+1]) -0.5*((a[ir]+m3)*(a[ir]+m3)-1)/(r[ir]+deltaR));
         n4 = deltaR*(alpha[ir]+n3)*(2.0*PI*(r[ir]+deltaR)*(Phi[ir+1]*Phi[ir+1]+Pi[ir+1]*Pi[ir+1]) +0.5*((a[ir]+m3)*(a[ir]+m3)-1)/(r[ir]+deltaR));
 
-            a[ir+1] += (m1 +2.0*m2 +2.0*m3 +m4)/6.0;
-        alpha[ir+1] += (n1 +2.0*n2 +2.0*n3 +n4)/6.0;
+            a[ir+1] =     a[ir] + (m1 +2.0*m2 +2.0*m3 +m4)/6.0;
+        alpha[ir+1] = alpha[ir] + (n1 +2.0*n2 +2.0*n3 +n4)/6.0;
     }
 }
 

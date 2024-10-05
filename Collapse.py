@@ -1,9 +1,10 @@
 import numpy as np
 from numba import njit
 
-deltaR = 0.01
+deltaR = 0.001
 deltaT = deltaR/5.0
-iterations = 8000
+iterations = 78100
+min_iterations = 77950
 
 def initialize_r(r0,maxR):
     R = np.arange(0,maxR,deltaR)
@@ -42,9 +43,9 @@ def iterate_metric(R,Phi,Pi,a,alpha):
         alpha[nR+1] = alpha[nR] + (n1+2.0*n2+2.0*n3+n4)/6.0
 
 @njit
-def iterate(R,Phi,Pi,Phi_hist,A_hist,iter):
-    a = np.empty_like(R)
-    alpha = np.empty_like(R)
+def iterate(R,Phi,Pi,Phi_hist,A_hist,iter,min_iter):
+    a = np.ones_like(R)
+    alpha = np.ones_like(R)
     k1 = np.empty_like(R)
     l1 = np.empty_like(R)
     k2 = np.empty_like(R)
@@ -59,8 +60,9 @@ def iterate(R,Phi,Pi,Phi_hist,A_hist,iter):
         # a and alpha with RK4
         iterate_metric(R,Phi,Pi,a,alpha)
 
-        Phi_hist[i] = Phi
-        A_hist[i] = a
+        if(i>=min_iter):
+            Phi_hist[i-min_iter] = Phi
+            A_hist[i-min_iter] = a
 
         # next Phi and Pi step with RK4
         k1[0] = deltaT*(-25.0*alpha[0]*Pi[0]/a[0] +48.0*alpha[1]*Pi[1]/a[1] 
@@ -143,16 +145,16 @@ def iterate(R,Phi,Pi,Phi_hist,A_hist,iter):
         Pi  = Pi + (l1+2.0*l2+2.0*l3+l4)/6.0
     
 
-r = initialize_r(deltaR*0.1,maxR = 50)
+r = initialize_r(deltaR*0.1,maxR = 100)
 phi, Phi, Pi = initialize_fields(r)
 
-Phi_hist = np.empty((iterations,len(r)))
-A_hist = np.empty((iterations,len(r)))
+Phi_hist = np.empty((iterations-min_iterations,len(r)))
+A_hist   = np.empty((iterations-min_iterations,len(r)))
 
 print('Compiling functions...')
-iterate(r,Phi,Pi,Phi_hist,A_hist,2)
+iterate(r,Phi,Pi,Phi_hist,A_hist,2,1)
 print('Iteration started')
-iterate(r,Phi,Pi,Phi_hist,A_hist,iterations)
+iterate(r,Phi,Pi,Phi_hist,A_hist,iterations,min_iterations)
 print('Iteration finished')
 
 #Write data to files

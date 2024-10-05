@@ -5,6 +5,7 @@
 
 #define MASS 0
 #define METRIC 1 // 0 = minkowski; 1 = choptuik; 2 = modified choptuik
+#define SAVE_MODE 1 // 0 = save uniformly on every SAVE_RES and SAVE_ITERATION ; 1 = save all points after FIRST_ITERATION and with r > MIN_R
 #define SAVE_RES 500
 #define SAVE_ITERATION 100
 #define FIRST_ITERATION 77950
@@ -89,14 +90,11 @@ void metric_iterationRK4(double *r,double *Phi,double *Pi,double *a, double *alp
     }
 }
 
-double **iteration(double *r,double *phi,double *Phi,double *Pi,double deltaR,int nR,int iterations){
+double **iteration(double *r,double *phi,double *Phi,double *Pi,double deltaR,int maxR,int iterations){
     double deltaT = deltaR/5.0;
-    double *rHist = malloc(sizeof(double)*(nR/SAVE_RES));
-    double *phiHist = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/SAVE_ITERATION));
-    double *PhiHist = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/SAVE_ITERATION));
-    double *PiHist = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/SAVE_ITERATION));
-    double *aHist = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/SAVE_ITERATION));
-    double *alphaHist = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/SAVE_ITERATION));
+    int nR = maxR/deltaR;
+    int noSaveNR = MIN_R/deltaR;
+    int saveNR = (maxR-MIN_R)/deltaR;
     double *a = malloc(sizeof(double)*nR);
     double *alpha = malloc(sizeof(double)*nR);
     double *j1 = malloc(sizeof(double)*nR);
@@ -114,33 +112,70 @@ double **iteration(double *r,double *phi,double *Phi,double *Pi,double deltaR,in
     double **history = malloc(sizeof(double*)*6);
     int save_count = SAVE_ITERATION;
 
-
+    double *rHist, *phiHist, *PhiHist, *PiHist, *aHist, *alphaHist;
+    if(SAVE_MODE == 0){
+        rHist     = malloc(sizeof(double)*(nR/SAVE_RES));
+        phiHist   = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/SAVE_ITERATION));
+        PhiHist   = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/SAVE_ITERATION));
+        PiHist    = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/SAVE_ITERATION));
+        aHist     = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/SAVE_ITERATION));
+        alphaHist = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/SAVE_ITERATION));
+        
+    }
+    else if(SAVE_MODE == 1){
+        rHist     = malloc(sizeof(double)*saveNR);
+        phiHist   = malloc(sizeof(double)*saveNR*(iterations-FIRST_ITERATION));
+        PhiHist   = malloc(sizeof(double)*saveNR*(iterations-FIRST_ITERATION));
+        PiHist    = malloc(sizeof(double)*saveNR*(iterations-FIRST_ITERATION));
+        aHist     = malloc(sizeof(double)*saveNR*(iterations-FIRST_ITERATION));
+        alphaHist = malloc(sizeof(double)*saveNR*(iterations-FIRST_ITERATION));
+    }
 
     for(int ir=0;ir<nR;ir++){
         a[ir] = 1.0;
         alpha[ir] = 1.0;
     }
-    for(int ir=0;ir<(nR/SAVE_RES);ir++){
-        rHist[ir] = r[ir*SAVE_RES];
+    if(SAVE_MODE == 0){
+        for(int ir=0;ir<(nR/SAVE_RES);ir++)
+            rHist[ir] = r[ir*SAVE_RES];
+    }
+    else if(SAVE_MODE == 1){
+        for(int ir=0;ir<saveNR;ir++)
+            rHist[ir] = r[noSaveNR+ir];
     }
     for(int i;i<iterations;i++){
         //Iterate the metric
         metric_iterationRK4(r,Phi,Pi,a,alpha,deltaR,nR);
 
         //Save values of Phi, Pi, phi, a and alpha
-        if(save_count == SAVE_ITERATION){
-            //printf("iteration %d\n",i);
-            //#pragma omp parallel for
-            for(int ir=0;ir<(nR/SAVE_RES);ir++){
-                  phiHist[(i/SAVE_ITERATION)*(nR/SAVE_RES)+(ir)] =   phi[ir*SAVE_RES];
-                  PhiHist[(i/SAVE_ITERATION)*(nR/SAVE_RES)+(ir)] =   Phi[ir*SAVE_RES];
-                   PiHist[(i/SAVE_ITERATION)*(nR/SAVE_RES)+(ir)] =    Pi[ir*SAVE_RES];
-                    aHist[(i/SAVE_ITERATION)*(nR/SAVE_RES)+(ir)] =     a[ir*SAVE_RES];
-                alphaHist[(i/SAVE_ITERATION)*(nR/SAVE_RES)+(ir)] = alpha[ir*SAVE_RES];
+        if(SAVE_MODE == 0){
+            if(save_count == SAVE_ITERATION){
+                //printf("iteration %d\n",i);
+                for(int ir=0;ir<(nR/SAVE_RES);ir++){
+                      phiHist[(i/SAVE_ITERATION)*(nR/SAVE_RES)+(ir)] =   phi[ir*SAVE_RES];
+                      PhiHist[(i/SAVE_ITERATION)*(nR/SAVE_RES)+(ir)] =   Phi[ir*SAVE_RES];
+                       PiHist[(i/SAVE_ITERATION)*(nR/SAVE_RES)+(ir)] =    Pi[ir*SAVE_RES];
+                        aHist[(i/SAVE_ITERATION)*(nR/SAVE_RES)+(ir)] =     a[ir*SAVE_RES];
+                    alphaHist[(i/SAVE_ITERATION)*(nR/SAVE_RES)+(ir)] = alpha[ir*SAVE_RES];
+                }
+                save_count=0;
             }
-            save_count=0;
+            save_count+=1;
         }
-        save_count+=1;
+        if(SAVE_MODE == 1){
+            //Save values of Phi, Pi, phi, a and alpha
+            if(i >= FIRST_ITERATION){
+                //printf("iteration %d\n",i);
+                int save_iter = i - FIRST_ITERATION;
+                for(int ir=0;ir<saveNR;ir++){
+                      phiHist[save_iter*saveNR + ir] =   phi[noSaveNR + ir];
+                      PhiHist[save_iter*saveNR + ir] =   Phi[noSaveNR + ir];
+                       PiHist[save_iter*saveNR + ir] =    Pi[noSaveNR + ir];
+                        aHist[save_iter*saveNR + ir] =     a[noSaveNR + ir];
+                    alphaHist[save_iter*saveNR + ir] = alpha[noSaveNR + ir];
+                }
+            }
+        }
 
         //Iterate phi, Phi and Pi
         j1[0] = deltaT*Pi[0]*alpha[0]/a[0];
@@ -273,8 +308,14 @@ double **iteration(double *r,double *phi,double *Phi,double *Pi,double deltaR,in
 
 void print_data(double** hist,double* model_parameters,int iterations,int maxR,double deltaR,int nP,time_t totalTime,double epsilon){
     int print_iterations, printR;
-    print_iterations = iterations/SAVE_ITERATION;
-    printR = (maxR/deltaR)/SAVE_RES;
+    if(SAVE_MODE == 0){
+        print_iterations = iterations/SAVE_ITERATION;
+        printR = (maxR/deltaR)/SAVE_RES;
+    }
+    if(SAVE_MODE == 1){
+        print_iterations = iterations;
+        printR = maxR/deltaR;
+    }
     double p0 = model_parameters[0];
     double r0 = model_parameters[1];
     double d  = model_parameters[2];
@@ -350,10 +391,9 @@ int main(int argc, char* argv[]){
     initial_params[2] = 3.0;
     double deltaR = 0.001;
     int maxR = 100;
-    int nR = maxR/deltaR;
     double **hist, **initial_func;
     double *r, *phi, *Phi, *Pi, *a, *alpha;
-    int iterations = 80000;
+    int iterations = ITERATIONS;
 
     initial_func = initialize_field(initial_params,deltaR,maxR);
     r = initial_func[0];
@@ -362,9 +402,12 @@ int main(int argc, char* argv[]){
     Pi = initial_func[3];
 
     time_t initTime = time(NULL);
-    hist = iteration(r,phi,Phi,Pi,deltaR,nR,iterations);
+    printf("iteration start");
+    hist = iteration(r,phi,Phi,Pi,deltaR,maxR,iterations);
     time_t finalTime = time(NULL);
     time_t timeDelta = (finalTime-initTime);
-
-    print_data(hist,initial_params,iterations,maxR,deltaR,1,timeDelta,0.0);
+    printf("printing start");
+    if(SAVE_MODE == 0)      print_data(hist,initial_params,iterations,maxR,deltaR,1,timeDelta,0.0);
+    else if(SAVE_MODE == 1) print_data(hist,initial_params,iterations-FIRST_ITERATION,maxR-MIN_R,deltaR,1,timeDelta,0.0);
+    printf("printing end");
 }

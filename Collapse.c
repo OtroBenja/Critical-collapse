@@ -153,7 +153,6 @@ void metric_iteration(double* Beta, double* Beta1_2, double* a, double* alpha, d
 double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,int maxR,int iterations,int save_iteration,double epsilon){
 
     int nR = maxR/deltaR;
-    int nDiff = nR*0; //Advantage set for the parallel metric
     int noSaveNR = MIN_R/deltaR;
     int saveNR = (maxR-MIN_R)/deltaR;
     double deltaT = deltaR/5.;
@@ -328,59 +327,6 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
                 Gamma[ir]   =  a[ir]/alpha[ir];
                 Epsilon[ir] = r2[ir]*Gamma[ir];
                 Zeta[ir]    =  r[ir]*a[ir]*a[ir];
-            }
-        }
-
-        //Work in progress metric for choptuik RK4 with parallel execution in 2 cores
-        //If on choptuik metric, solve a and alpha with known values of PHI and PI using RK4
-        if(METRIC == 5){
-            #pragma omp parallel for
-            for(int ir=0;ir<nR-1;ir++){
-                Beta1_2[ir] = 0.5*PI*(r[ir]+0.5*deltaR)*((Pi[ir]+Pi[ir+1])*(Pi[ir]+Pi[ir+1])+(Phi[ir]+Phi[ir+1])*(Phi[ir]+Phi[ir+1]));
-                //Beta1_2[ir] = 2.0*PI*(r[ir]+deltaR/2)*(Pi[ir]*Pi[ir]+Phi[ir]*Phi[ir]);
-            }
-            for(int ir=0;ir<nDiff;ir++){
-            m[4*ir+0] = deltaR* a[ir]               *(Beta[ir]   -0.5*( a[ir]               * a[ir]               -1)/ r[ir]);
-            m[4*ir+1] = deltaR*(a[ir]+0.5*m[4*ir  ])*(Beta1_2[ir]-0.5*((a[ir]+0.5*m[4*ir  ])*(a[ir]+0.5*m[4*ir  ])-1)/(r[ir]+0.5*deltaR));
-            m[4*ir+2] = deltaR*(a[ir]+0.5*m[4*ir+1])*(Beta1_2[ir]-0.5*((a[ir]+0.5*m[4*ir+1])*(a[ir]+0.5*m[4*ir+1])-1)/(r[ir]+0.5*deltaR));
-            m[4*ir+3] = deltaR*(a[ir]+    m[4*ir+2])*(Beta[ir+1] -0.5*((a[ir]+    m[4*ir+2])*(a[ir]+    m[4*ir+2])-1)/ r[ir+1]);
-            a[ir+1] = a[ir]+(m[4*ir] +2.0*(m[4*ir+1]+m[4*ir+2]) +m[4*ir+3])/6.0;
-            }
-            #pragma omp parallel num_threads(2)
-            {
-            int myID = omp_get_thread_num();
-            if(myID==1){
-                for(int ir=nDiff;ir<nR-1;ir++){
-                    m[4*ir+0] = deltaR* a[ir]               *(Beta[ir]   -0.5*( a[ir]               * a[ir]               -1)/ r[ir]);
-                    m[4*ir+1] = deltaR*(a[ir]+0.5*m[4*ir  ])*(Beta1_2[ir]-0.5*((a[ir]+0.5*m[4*ir  ])*(a[ir]+0.5*m[4*ir  ])-1)/(r[ir]+0.5*deltaR));
-                    m[4*ir+2] = deltaR*(a[ir]+0.5*m[4*ir+1])*(Beta1_2[ir]-0.5*((a[ir]+0.5*m[4*ir+1])*(a[ir]+0.5*m[4*ir+1])-1)/(r[ir]+0.5*deltaR));
-                    m[4*ir+3] = deltaR*(a[ir]+    m[4*ir+2])*(Beta[ir+1] -0.5*((a[ir]+    m[4*ir+2])*(a[ir]+    m[4*ir+2])-1)/ r[ir+1]);
-                    a[ir+1] = a[ir] +(m[4*ir] +2.0*(m[4*ir+1]+m[4*ir+2]) +m[4*ir+3])/6.0;
-                }
-            } else {
-                for(int ir=0;ir<nR-1-nDiff;ir++){
-                    n[0] = deltaR* alpha[ir]          *(Beta[ir]   +0.5*( a[ir]             * a[ir]                 -1)/ r[ir]);
-                    n[1] = deltaR*(alpha[ir]+0.5*n[0])*(Beta1_2[ir]+0.5*((a[ir]+0.5*m[4*ir  ])*(a[ir]+0.5*m[4*ir  ])-1)/(r[ir]+0.5*deltaR));
-                    n[2] = deltaR*(alpha[ir]+0.5*n[1])*(Beta1_2[ir]+0.5*((a[ir]+0.5*m[4*ir+1])*(a[ir]+0.5*m[4*ir+1])-1)/(r[ir]+0.5*deltaR));
-                    n[3] = deltaR*(alpha[ir]+    n[2])*(Beta[ir+1] +0.5*((a[ir]+    m[4*ir+2])*(a[ir]+    m[4*ir+2])-1)/ r[ir+1]);
-                    alpha[ir+1] = alpha[ir] +(n[0] +2.0*(n[1]+n[2]) +n[3])/6.0;
-                }
-            }
-            }
-            for(int ir=nR-1-nDiff;ir<nR-1;ir++){
-                n[0] = deltaR* alpha[ir]          *(Beta[ir]   +0.5*( a[ir]               * a[ir]               -1)/ r[ir]);
-                n[1] = deltaR*(alpha[ir]+0.5*n[0])*(Beta1_2[ir]+0.5*((a[ir]+0.5*m[4*ir  ])*(a[ir]+0.5*m[4*ir  ])-1)/(r[ir]+0.5*deltaR));
-                n[2] = deltaR*(alpha[ir]+0.5*n[1])*(Beta1_2[ir]+0.5*((a[ir]+0.5*m[4*ir+1])*(a[ir]+0.5*m[4*ir+1])-1)/(r[ir]+0.5*deltaR));
-                n[3] = deltaR*(alpha[ir]+    n[2])*(Beta[ir+1] +0.5*((a[ir]+    m[4*ir+2])*(a[ir]+    m[4*ir+2])-1)/ r[ir+1]);
-                alpha[ir+1] = alpha[ir] +(n[0] +2.0*(n[1]+n[2]) +n[3])/6.0;
-            }
-            //printf("end metric\n");
-            //Define auxiliar variables
-            #pragma omp parallel for
-            for(int ir=0;ir<nR;ir++){
-                Gamma[ir] = alpha[ir]/a[ir];
-                Epsilon[ir] = r2[ir]*Gamma[ir];
-                Zeta[ir] = r[ir]/(a[ir]*a[ir]);
             }
         }
 

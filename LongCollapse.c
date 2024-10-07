@@ -13,12 +13,12 @@ void omp_set_num_threads(){return;}
 
 #define MASS 0
 #define METRIC 1 // 0 = minkowski; 1 = choptuik; 2 = modified choptuik
-#define SAVE_MODE 0 // 0 = save uniformly on every SAVE_RES and SAVE_ITERATION ; 1 = save all points after FIRST_ITERATION and with r > MIN_R
-#define SAVE_RES 500
-#define SAVE_ITERATION 100
-#define FIRST_ITERATION 779500
+#define SAVE_MODE 1 // 0 = save uniformly on every SAVE_RES and SAVE_ITERATION ; 1 = save all points after FIRST_ITERATION and with r > MIN_R
+#define SAVE_RES 50
+#define SAVE_ITERATION 10
+#define FIRST_ITERATION 7600
 #define MIN_R 50
-#define ITERATIONS 78100
+#define ITERATIONS 7810
 #define EPSILON 0.0 // Default Kreiss-Oliger dampening, must be smaller than 0.15625
 #define PI 3.141592653
 #define E  2.718281828
@@ -152,7 +152,6 @@ void metric_iteration(long double* Beta, long double* Beta1_2, long double* a, l
 long double** iteration(long double* r,long double* phi,long double* Phi,long double* Pi,long double deltaR,int maxR,int iterations,int save_iteration,long double epsilon){
 
     int nR = maxR/deltaR;
-    int nDiff = nR*0; //Advantage set for the parallel metric
     int noSaveNR = MIN_R/deltaR;
     int saveNR = (maxR-MIN_R)/deltaR;
     long double deltaT = deltaR/5.;
@@ -164,9 +163,6 @@ long double** iteration(long double* r,long double* phi,long double* Phi,long do
     long double *Gamma = malloc(sizeof(long double)*nR);
     long double *Epsilon = malloc(sizeof(long double)*nR);
     long double *Zeta = malloc(sizeof(long double)*nR);
-    long double *Phi_ko = malloc(sizeof(long double)*nR);
-    long double *Pi_ko = malloc(sizeof(long double)*nR);
-    long double ko_c = pow(-1,3)*epsilon/5.;
     long double *r2 = malloc(sizeof(long double)*nR);
     long double *j1 = malloc(sizeof(long double)*nR);
     long double *k1 = malloc(sizeof(long double)*nR);
@@ -182,10 +178,6 @@ long double** iteration(long double* r,long double* phi,long double* Phi,long do
     long double *l4 = malloc(sizeof(long double)*nR);
     long double m1, n1, m2, n2, m3, n3, m4, n4;
     long double *m, *n;
-    if(METRIC==5){
-        m = malloc(sizeof(long double)*4*nR);
-        n = malloc(sizeof(long double)*4);
-    }
     long double temp;
     long double *temp_pointer;
     long double *Rhistory, *Fhistory, *Xhistory, *Yhistory, *Ahistory, *Bhistory, *Mhistory;
@@ -330,63 +322,10 @@ long double** iteration(long double* r,long double* phi,long double* Phi,long do
             }
         }
 
-        //Work in progress metric for choptuik RK4 with parallel execution in 2 cores
-        //If on choptuik metric, solve a and alpha with known values of PHI and PI using RK4
-        if(METRIC == 5){
-            #pragma omp parallel for
-            for(int ir=0;ir<nR-1;ir++){
-                Beta1_2[ir] = 0.5*PI*(r[ir]+0.5*deltaR)*((Pi[ir]+Pi[ir+1])*(Pi[ir]+Pi[ir+1])+(Phi[ir]+Phi[ir+1])*(Phi[ir]+Phi[ir+1]));
-                //Beta1_2[ir] = 2.0*PI*(r[ir]+deltaR/2)*(Pi[ir]*Pi[ir]+Phi[ir]*Phi[ir]);
-            }
-            for(int ir=0;ir<nDiff;ir++){
-            m[4*ir+0] = deltaR* a[ir]               *(Beta[ir]   -0.5*( a[ir]               * a[ir]               -1)/ r[ir]);
-            m[4*ir+1] = deltaR*(a[ir]+0.5*m[4*ir  ])*(Beta1_2[ir]-0.5*((a[ir]+0.5*m[4*ir  ])*(a[ir]+0.5*m[4*ir  ])-1)/(r[ir]+0.5*deltaR));
-            m[4*ir+2] = deltaR*(a[ir]+0.5*m[4*ir+1])*(Beta1_2[ir]-0.5*((a[ir]+0.5*m[4*ir+1])*(a[ir]+0.5*m[4*ir+1])-1)/(r[ir]+0.5*deltaR));
-            m[4*ir+3] = deltaR*(a[ir]+    m[4*ir+2])*(Beta[ir+1] -0.5*((a[ir]+    m[4*ir+2])*(a[ir]+    m[4*ir+2])-1)/ r[ir+1]);
-            a[ir+1] = a[ir]+(m[4*ir] +2.0*(m[4*ir+1]+m[4*ir+2]) +m[4*ir+3])/6.0;
-            }
-            #pragma omp parallel num_threads(2)
-            {
-            int myID = omp_get_thread_num();
-            if(myID==1){
-                for(int ir=nDiff;ir<nR-1;ir++){
-                    m[4*ir+0] = deltaR* a[ir]               *(Beta[ir]   -0.5*( a[ir]               * a[ir]               -1)/ r[ir]);
-                    m[4*ir+1] = deltaR*(a[ir]+0.5*m[4*ir  ])*(Beta1_2[ir]-0.5*((a[ir]+0.5*m[4*ir  ])*(a[ir]+0.5*m[4*ir  ])-1)/(r[ir]+0.5*deltaR));
-                    m[4*ir+2] = deltaR*(a[ir]+0.5*m[4*ir+1])*(Beta1_2[ir]-0.5*((a[ir]+0.5*m[4*ir+1])*(a[ir]+0.5*m[4*ir+1])-1)/(r[ir]+0.5*deltaR));
-                    m[4*ir+3] = deltaR*(a[ir]+    m[4*ir+2])*(Beta[ir+1] -0.5*((a[ir]+    m[4*ir+2])*(a[ir]+    m[4*ir+2])-1)/ r[ir+1]);
-                    a[ir+1] = a[ir] +(m[4*ir] +2.0*(m[4*ir+1]+m[4*ir+2]) +m[4*ir+3])/6.0;
-                }
-            } else {
-                for(int ir=0;ir<nR-1-nDiff;ir++){
-                    n[0] = deltaR* alpha[ir]          *(Beta[ir]   +0.5*( a[ir]             * a[ir]                 -1)/ r[ir]);
-                    n[1] = deltaR*(alpha[ir]+0.5*n[0])*(Beta1_2[ir]+0.5*((a[ir]+0.5*m[4*ir  ])*(a[ir]+0.5*m[4*ir  ])-1)/(r[ir]+0.5*deltaR));
-                    n[2] = deltaR*(alpha[ir]+0.5*n[1])*(Beta1_2[ir]+0.5*((a[ir]+0.5*m[4*ir+1])*(a[ir]+0.5*m[4*ir+1])-1)/(r[ir]+0.5*deltaR));
-                    n[3] = deltaR*(alpha[ir]+    n[2])*(Beta[ir+1] +0.5*((a[ir]+    m[4*ir+2])*(a[ir]+    m[4*ir+2])-1)/ r[ir+1]);
-                    alpha[ir+1] = alpha[ir] +(n[0] +2.0*(n[1]+n[2]) +n[3])/6.0;
-                }
-            }
-            }
-            for(int ir=nR-1-nDiff;ir<nR-1;ir++){
-                n[0] = deltaR* alpha[ir]          *(Beta[ir]   +0.5*( a[ir]               * a[ir]               -1)/ r[ir]);
-                n[1] = deltaR*(alpha[ir]+0.5*n[0])*(Beta1_2[ir]+0.5*((a[ir]+0.5*m[4*ir  ])*(a[ir]+0.5*m[4*ir  ])-1)/(r[ir]+0.5*deltaR));
-                n[2] = deltaR*(alpha[ir]+0.5*n[1])*(Beta1_2[ir]+0.5*((a[ir]+0.5*m[4*ir+1])*(a[ir]+0.5*m[4*ir+1])-1)/(r[ir]+0.5*deltaR));
-                n[3] = deltaR*(alpha[ir]+    n[2])*(Beta[ir+1] +0.5*((a[ir]+    m[4*ir+2])*(a[ir]+    m[4*ir+2])-1)/ r[ir+1]);
-                alpha[ir+1] = alpha[ir] +(n[0] +2.0*(n[1]+n[2]) +n[3])/6.0;
-            }
-            //printf("end metric\n");
-            //Define auxiliar variables
-            #pragma omp parallel for
-            for(int ir=0;ir<nR;ir++){
-                Gamma[ir] = alpha[ir]/a[ir];
-                Epsilon[ir] = r2[ir]*Gamma[ir];
-                Zeta[ir] = r[ir]/(a[ir]*a[ir]);
-            }
-        }
-
         if(SAVE_MODE == 0){
             //Save values of Phi, Pi, phi, a and alpha
             if(save_count == save_iteration){
-                //printf("iteration %d\n",i);
+                printf("iteration %d\n",i);
                 if(MASS){
                     mass = 0;
                     for(int ir=0;ir<nR;ir++){
@@ -408,7 +347,6 @@ long double** iteration(long double* r,long double* phi,long double* Phi,long do
             }
             save_count+=1;
         }
-
         if(SAVE_MODE == 1){
             //Save values of Phi, Pi, phi, a and alpha
             if(i >= FIRST_ITERATION){
@@ -593,43 +531,12 @@ long double** iteration(long double* r,long double* phi,long double* Phi,long do
         //                -4*Gamma[nR-2]*Gamma[nR-2]*(Pi[nR-2]+l3[nR-1]) +
         //                   Gamma[nR-3]*Gamma[nR-3]*(Pi[nR-3]+l3[nR-1])) +
         //           -0.5*(phi[nR-1]+j3[nR-1])*(3*Gamma[nR-1] -4*Gamma[nR-2] +Gamma[nR-3]) ;
-
-        //Calculate Kreiss-Oliger dissipation of 6th order for next step
-        Phi_ko[0] = (14.71804060*Phi[0]-99.3467741*Phi[1]+287.0017918*Phi[2]-459.938769*Phi[3]+441.5412182*Phi[4]-253.8862004*Phi[5]+80.9492233*Phi[6]-11.03853045*Phi[7])/3.67951015;
-        Pi_ko[ 0] = (14.71804060* Pi[0]-99.3467741* Pi[1]+287.0017918* Pi[2]-459.938769* Pi[3]+441.5412182* Pi[4]-253.8862004* Pi[5]+80.9492233* Pi[6]-11.03853045* Pi[7])/3.67951015;
-        Phi_ko[1] = 3*Phi[0]-20*Phi[1]+57*Phi[2]-90*Phi[3]+85*Phi[4]-48*Phi[5]+15*Phi[6]-2*Phi[7];
-        Pi_ko[ 1] = 3* Pi[0]-20* Pi[1]+57* Pi[2]-90* Pi[3]+85* Pi[4]-48* Pi[5]+15* Pi[6]-2* Pi[7];
-        Phi_ko[2] = 2*Phi[0]-13*Phi[1]+36*Phi[2]-55*Phi[3]+50*Phi[4]-27*Phi[5]+8*Phi[6]-1*Phi[7];
-        Pi_ko[ 2] = 2* Pi[0]-13* Pi[1]+36* Pi[2]-55* Pi[3]+50* Pi[4]-27* Pi[5]+8* Pi[6]-1* Pi[7];
-        //Phi_ko[0] = Phi[0]-6.0*Phi[1]+15.0*Phi[2]-20.0*Phi[3]+15.0*Phi[4]-6.0*Phi[5]+Phi[6];
-        //Pi_ko[ 0] =  Pi[0]-6.0* Pi[1]+15.0* Pi[2]-20.0* Pi[3]+15.0* Pi[4]-6.0* Pi[5]+ Pi[6];
-        //Phi_ko[1] = Phi[0]-6.0*Phi[1]+15.0*Phi[2]-20.0*Phi[3]+15.0*Phi[4]-6.0*Phi[5]+Phi[6];
-        //Pi_ko[ 1] =  Pi[0]-6.0* Pi[1]+15.0* Pi[2]-20.0* Pi[3]+15.0* Pi[4]-6.0* Pi[5]+ Pi[6];
-        //Phi_ko[2] = Phi[0]-6.0*Phi[1]+15.0*Phi[2]-20.0*Phi[3]+15.0*Phi[4]-6.0*Phi[5]+Phi[6];
-        //Pi_ko[ 2] =  Pi[0]-6.0* Pi[1]+15.0* Pi[2]-20.0* Pi[3]+15.0* Pi[4]-6.0* Pi[5]+ Pi[6];
-        //Phi_ko[0] = -20.0*Phi[0]+30.0*Phi[1]-12.0*Phi[2] +2.0*Phi[3];
-        //Pi_ko[ 0] = -20.0* Pi[0]+30.0* Pi[1]-12.0* Pi[2] +2.0* Pi[3];
-        //Phi_ko[1] =  15.0*Phi[0]-26.0*Phi[1]+16.0*Phi[2] -6.0*Phi[3]    +Phi[4];
-        //Pi_ko[ 1] =  15.0* Pi[0]-26.0* Pi[1]+16.0* Pi[2] -6.0* Pi[3]    + Pi[4];
-        //Phi_ko[2] =  -6.0*Phi[0]+16.0*Phi[1]-20.0*Phi[2]+15.0*Phi[3]-6.0*Phi[4]+Phi[5];
-        //Pi_ko[ 2] =  -6.0* Pi[0]+16.0* Pi[1]-20.0* Pi[2]+15.0* Pi[3]-6.0* Pi[4]+ Pi[5];
-        for(int ir=3;ir<nR-3;ir++){
-        Phi_ko[ir] = Phi[ir-3]-6.0*Phi[ir-2]+15.0*Phi[ir-1]-20.0*Phi[ir]+15.0*Phi[ir+1]-6.0*Phi[ir+2]+Phi[ir+3];
-        Pi_ko[ir]  =  Pi[ir-3]-6.0* Pi[ir-2]+15.0* Pi[ir-1]-20.0* Pi[ir]+15.0* Pi[ir+1]-6.0* Pi[ir+2]+ Pi[ir+3];
-        }
-        Phi_ko[nR-3] = Phi[nR-6]-6.0*Phi[nR-5]+15.0*Phi[nR-4]-20.0*Phi[nR-3]+15.0*Phi[nR-2]-6.0*Phi[nR-1];
-        Pi_ko[ nR-3] =  Pi[nR-6]-6.0* Pi[nR-5]+15.0* Pi[nR-4]-20.0* Pi[nR-3]+15.0* Pi[nR-2]-6.0* Pi[nR-1];
-        Phi_ko[nR-2] = Phi[nR-5]-6.0*Phi[nR-4]+15.0*Phi[nR-3]-20.0*Phi[nR-2]+15.0*Phi[nR-1];
-        Pi_ko[ nR-2] =  Pi[nR-5]-6.0* Pi[nR-4]+15.0* Pi[nR-3]-20.0* Pi[nR-2]+15.0* Pi[nR-1];
-        Phi_ko[nR-1] = Phi[nR-4]-6.0*Phi[nR-3]+15.0*Phi[nR-2]-20.0*Phi[nR-1];
-        Pi_ko[ nR-1] =  Pi[nR-4]-6.0* Pi[nR-3]+15.0* Pi[nR-2]-20.0* Pi[nR-1];
-
         //Calculate phi, Phi and Pi on next step
         //#pragma omp parallel for
         for(int ir=0;ir<nR;ir++){
             phi[ir] += (j1[ir]+2.0*(j2[ir]+j3[ir])+j4[ir])/6.0;
-            Phi[ir] += (k1[ir]+2.0*(k2[ir]+k3[ir])+k4[ir])/6.0 -ko_c*Phi_ko[ir];
-            Pi[ir]  += (l1[ir]+2.0*(l2[ir]+l3[ir])+l4[ir])/6.0 -ko_c* Pi_ko[ir];
+            Phi[ir] += (k1[ir]+2.0*(k2[ir]+k3[ir])+k4[ir])/6.0;
+            Pi[ir]  += (l1[ir]+2.0*(l2[ir]+l3[ir])+l4[ir])/6.0;
         }
     }
     if(SAVE_MODE == 0){
@@ -663,25 +570,31 @@ void print_mass(long double *MassHist,struct tm time_data,int print_iterations){
 }
 
 void print_data(long double** hist,int fType,long double* model_parameters,int iterations,int maxR,long double deltaR,int nP,time_t totalTime,long double epsilon){
+    printf("print 0\n");
     int print_iterations, printR;
     if(SAVE_MODE == 0){
         print_iterations = iterations/SAVE_ITERATION;
         printR = (maxR/deltaR)/SAVE_RES;
     }
+    printf("print 1\n");
     if(SAVE_MODE == 1){
         print_iterations = iterations;
         printR = maxR/deltaR;
     }
+    printf("print 2\n");
     long double p0 = model_parameters[0];
     long double r0 = model_parameters[1];
     long double d  = model_parameters[2];
+    printf("print 3\n");
     //Add time to filename
     time_t t = time(NULL);
-    struct tm tm = *localtime(&t);
-    if(MASS) print_mass(hist[6],tm,print_iterations);
+    printf("print 4\n");
     char fileName[50];
-    snprintf(fileName, sizeof(fileName), "Output_%02d%02d%02d.dat", tm.tm_hour, tm.tm_min, tm.tm_sec);
+    printf("print 5\n");
+    snprintf(fileName, sizeof(fileName), "Output_long.dat");
+    printf("print 6\n");
     FILE* data = fopen(fileName,"w");
+    printf("print 7\n");
     //Print all parameters 
          if(METRIC == 0) fprintf(data,"Metric: Minkowski\n");
     else if(METRIC == 1) fprintf(data,"Metric: Choptuik\n");
@@ -702,6 +615,7 @@ void print_data(long double** hist,int fType,long double* model_parameters,int i
     fprintf(data,"Iterations: %d\n",iterations);
     fprintf(data,"Number of threads: %d\n",nP);
     fprintf(data,"Total simulation time: %ld\n",totalTime);
+    printf("print 8\n");
     //Print R
     for(int ir=0;ir<(printR-1);ir++){
         fprintf(data,"%lf,",hist[0][ir]);
@@ -761,7 +675,7 @@ int main(int argc, char* argv[]){
     //Define simulation parameters
     int fType = 0;
     if((argc>1) && atoi(argv[1])) fType = atoi(argv[1]);
-    long double p0 = 0.001;
+    long double p0 = 0.01;
     if((argc>2) && atof(argv[2])) p0 = atof(argv[2]);
     long double r0 = 20.;
     if((argc>3) && atof(argv[3])) r0 = atof(argv[3]);
@@ -778,7 +692,7 @@ int main(int argc, char* argv[]){
     //Define simulation limits
     long double deltaR = 0.001;
     if((argc>6) && atof(argv[6])) deltaR = atof(argv[6]);
-    int maxR = 70;
+    int maxR = 100;
     if((argc>7) && atoi(argv[7])) maxR = atoi(argv[7]);
     int iterations = ITERATIONS;
     if((argc>8) && atoi(argv[8])) iterations = atoi(argv[8]);
@@ -789,21 +703,24 @@ int main(int argc, char* argv[]){
     phi = initial_conditions[1];
     Phi = initial_conditions[2];
     Pi = initial_conditions[3];
-
+    printf("field initialized\n");
     //Pass initial conditions to iteration
     if((argc>9) && atoi(argv[9])) omp_set_num_threads(atoi(argv[9]));
     time_t initTime = time(NULL);
     hist = iteration(r,phi,Phi,Pi,deltaR,maxR,iterations,SAVE_ITERATION,epsilon);
+    printf("finished iteration\n");
     time_t finalTime = time(NULL);
-    int nP = omp_get_max_threads();
+    int nP = 1;
     time_t timeDelta = (finalTime-initTime);
-
     //Print simulation history to a file
-    if(SAVE_MODE == 0)
+    if(SAVE_MODE == 0){
+        printf("start print\n");
         print_data(hist,fType,model_parameters,iterations,maxR,deltaR,nP,timeDelta,epsilon);
+    }
     else if(SAVE_MODE == 1){
+        printf("start print\n");
         print_data(hist,fType,model_parameters,iterations-FIRST_ITERATION,maxR-MIN_R,deltaR,nP,timeDelta,epsilon);
-        }
+    }
     printf("Finished, total time: %lds\n", timeDelta);
 }
 

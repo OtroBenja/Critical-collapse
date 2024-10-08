@@ -12,10 +12,10 @@ void omp_set_num_threads(){return;}
 #endif
 
 #define MASS 0
-#define METRIC 1 // 0 = minkowski; 1 = choptuik; 2 = modified choptuik
+#define METRIC 0 // 0 = minkowski; 1 = choptuik; 2 = modified choptuik
 #define SAVE_MODE 0 // 0 = save uniformly on every SAVE_RES and SAVE_ITERATION ; 1 = save all points after FIRST_ITERATION and with r > MIN_R
-#define SAVE_RES 500
-#define SAVE_ITERATION 100
+#define SAVE_RES 20
+#define SAVE_ITERATION 10
 #define FIRST_ITERATION 77950
 #define MIN_R 50
 #define ITERATIONS 78100
@@ -23,6 +23,7 @@ void omp_set_num_threads(){return;}
 #define PI 3.141592653
 #define E  2.718281828
 #define CONST 0.39894228 // 1/sqrt(2*PI)
+#define DT_DR 0.2 // deltaT/deltaR
 
 double** initialize_field(int fType,double* model_parameters,double deltaR,int maxR){
     double p0 = model_parameters[0];
@@ -70,6 +71,11 @@ double** initialize_field(int fType,double* model_parameters,double deltaR,int m
     //Set initial Pi to zero
     for(int i=0;i<nR;i++){
         Pi[i] = 0;
+    }
+
+    //Change phi value to match the drivatives
+    for(int i=0;i<nR;i++){
+        phi[i] = pow(2.0*PI,0.5)*r[i]*phi[i];
     }
         
     return_values[0] = r;
@@ -156,7 +162,7 @@ double** iteration(double* r,double* phi,double* X,double* Y,double deltaR,int m
     int nR = maxR/deltaR;
     int noSaveNR = MIN_R/deltaR;
     int saveNR = (maxR-MIN_R)/deltaR;
-    double deltaT = deltaR/5.;
+    double deltaT = DT_DR*deltaR;
     double mass;
     double *a = malloc(sizeof(double)*nR);
     double *alpha = malloc(sizeof(double)*nR);
@@ -182,11 +188,6 @@ double** iteration(double* r,double* phi,double* X,double* Y,double deltaR,int m
     double *k4 = malloc(sizeof(double)*nR);
     double *l4 = malloc(sizeof(double)*nR);
     double m1, n1, m2, n2, m3, n3, m4, n4;
-    double *m, *n;
-    if(METRIC==5){
-        m = malloc(sizeof(double)*4*nR);
-        n = malloc(sizeof(double)*4);
-    }
     double temp;
     double *temp_pointer;
     double *Rhistory, *Fhistory, *Xhistory, *Yhistory, *Ahistory, *Bhistory, *Mhistory;
@@ -287,7 +288,7 @@ double** iteration(double* r,double* phi,double* X,double* Y,double deltaR,int m
                 alpha[ir+1] = alpha[ir] + deltaR*(n1 +2.0*(n2+n3) +n4)/6.0;
             }
             //Define auxiliar variables
-            #pragma omp parallel for
+            //#pragma omp parallel for
             for(int ir=0;ir<nR;ir++){
                 Gamma[ir] = a[ir]/alpha[ir];
                 Zeta[ir] = r[ir]*a[ir]*a[ir];
@@ -332,7 +333,7 @@ double** iteration(double* r,double* phi,double* X,double* Y,double deltaR,int m
                     }
                     Mhistory[save_iter] = mass;
                 }
-                #pragma omp parallel for
+                //#pragma omp parallel for
                 for(int ir=0;ir<saveNR;ir++){
                     Xhistory[save_iter*saveNR + ir] =     X[noSaveNR + ir];
                     Yhistory[save_iter*saveNR + ir] =     Y[noSaveNR + ir];
@@ -348,31 +349,34 @@ double** iteration(double* r,double* phi,double* X,double* Y,double deltaR,int m
 
         //calculate j1, k1 and l1
         j1[0] = deltaT*            Gamma[0]*Y[0];
-        k1[0] = deltaT*r[0]*(-25.0*Gamma[0]*Y[0]/r[0] +48.0*Gamma[1]*Y[1]/r[1] -36.0*Gamma[2]*Y[2]/r[2]
-                             +16.0*Gamma[3]*Y[3]/r[3]  -3.0*Gamma[4]*Y[4]/r[4])/(12.0*deltaR);
-        l1[0] = deltaT*     (-25.0*r[0]*Gamma[0]*X[0] +48.0*r[1]*Gamma[1]*X[1] -36.0*r[2]*Gamma[2]*X[2]
-                             +16.0*r[3]*Gamma[3]*X[3]  -3.0*r[4]*Gamma[4]*X[4])/(12.0*deltaR*r[0]);
-        j1[1] = deltaT*   Gamma[1]* Y[1];
-        k1[1] = deltaT*r[1]*(Gamma[4]*Y[4]/r[4] -6.0*Gamma[3]*Y[3]/r[3] +18.0*Gamma[2]*Y[2]/r[2]
-                       -10.0*Gamma[1]*Y[1]/r[1] -3.0*Gamma[0]*Y[0]/r[0])/(12.0*deltaR);
-        l1[1] = deltaT*     (r[4]*Gamma[4]*X[4] -6.0*r[3]*Gamma[3]*X[3] +18.0*r[2]*Gamma[2]*X[2]
-                       -10.0*r[1]*Gamma[1]*X[1] -3.0*r[0]*Gamma[0]*X[0])/(12.0*deltaR*r[1]);
+        //k1[0] = DT_DR*r[0]*(-25.0*Gamma[0]*Y[0]/r[0] +48.0*Gamma[1]*Y[1]/r[1] -36.0*Gamma[2]*Y[2]/r[2]
+        //                     +16.0*Gamma[3]*Y[3]/r[3]  -3.0*Gamma[4]*Y[4]/r[4])/(12.0);
+        k1[0] = 0;
+        l1[0] = DT_DR*     (-25.0*r[0]*Gamma[0]*X[0] +48.0*r[1]*Gamma[1]*X[1] -36.0*r[2]*Gamma[2]*X[2]
+                            +16.0*r[3]*Gamma[3]*X[3]  -3.0*r[4]*Gamma[4]*X[4])/(12.0*r[0]);
+        //l1[0] = DT_DR*(-25.0*Gamma[0]*X[0] +48.0*Gamma[1]*X[1] -36.0*Gamma[2]*X[2]
+        //               +16.0*Gamma[3]*X[3]  -3.0*Gamma[4]*X[4])/(12.0*r[0]);
+        j1[1] = deltaT*     Gamma[1]*Y[1];
+        k1[1] = DT_DR*r[1]*(Gamma[4]*Y[4]/r[4] -6.0*Gamma[3]*Y[3]/r[3] +18.0*Gamma[2]*Y[2]/r[2]
+                      -10.0*Gamma[1]*Y[1]/r[1] -3.0*Gamma[0]*Y[0]/r[0])/(12.0);
+        l1[1] = DT_DR*     (r[4]*Gamma[4]*X[4] -6.0*r[3]*Gamma[3]*X[3] +18.0*r[2]*Gamma[2]*X[2]
+                      -10.0*r[1]*Gamma[1]*X[1] -3.0*r[0]*Gamma[0]*X[0])/(12.0*r[1]);
         //#pragma omp parallel for
         for(int ir=2;ir<nR-2;ir++){
-            j1[ir] = deltaT*        Gamma[ir  ]*Y[ir  ]/r[ir  ];
-            k1[ir] = deltaT*r[ir]*(-Gamma[ir+2]*Y[ir+2]/r[ir+2] +8.0*Gamma[ir+1]*Y[ir+1]/r[ir+1] 
-                               -8.0*Gamma[ir-1]*Y[ir-1]/r[ir-1]     +Gamma[ir-2]*Y[ir-2]/r[ir-2])/(12.0*deltaR);
-            l1[ir] = deltaT*      (-r[ir+2]*Gamma[ir+2]*X[ir+2] +8.0*r[ir+1]*Gamma[ir+1]*X[ir+1] 
-                               -8.0*r[ir-1]*Gamma[ir-1]*X[ir-1]     +r[ir-2]*Gamma[ir-2]*X[ir-2])/(12.0*deltaR*r[ir]);
+            j1[ir] = deltaT*        Gamma[ir  ]*Y[ir  ];
+            k1[ir] = DT_DR*r[ir]*(-Gamma[ir+2]*Y[ir+2]/r[ir+2] +8.0*Gamma[ir+1]*Y[ir+1]/r[ir+1]
+                              -8.0*Gamma[ir-1]*Y[ir-1]/r[ir-1]     +Gamma[ir-2]*Y[ir-2]/r[ir-2])/(12.0);
+            l1[ir] = DT_DR*      (-r[ir+2]*Gamma[ir+2]*X[ir+2] +8.0*r[ir+1]*Gamma[ir+1]*X[ir+1]
+                              -8.0*r[ir-1]*Gamma[ir-1]*X[ir-1]     +r[ir-2]*Gamma[ir-2]*X[ir-2])/(12.0*r[ir]);
         }
-        j1[nR-2] = deltaT*    Gamma[nR-2]*Y[nR-2]/r[nR-2];
+        j1[nR-2] = deltaT*      Gamma[nR-2]*Y[nR-2];
         k1[nR-2] = 0;
         //k1[nR-2] = deltaT*  (-Gamma[nR-5]* Pi[nR-5]   +6.0*Gamma[nR-4]* Pi[nR-4]   -18.0*Gamma[nR-3]* Pi[nR-3] 
         //                +10.0*Gamma[nR-2]* Pi[nR-2]   +3.0*Gamma[nR-1]* Pi[nR-1])/(12.0*deltaR);
-        k1[nR-2] = 0;
+        l1[nR-2] = 0;
         //l1[nR-2] = deltaT*(-Epsilon[nR-5]*Phi[nR-5] +6.0*Epsilon[nR-4]*Phi[nR-4] -18.0*Epsilon[nR-3]*Phi[nR-3] 
         //              +10.0*Epsilon[nR-2]*Phi[nR-2] +3.0*Epsilon[nR-1]*Phi[nR-1])/(12.0*deltaR*r2[nR-2]);
-        j1[nR-1] = deltaT*    Gamma[nR-1]*Y[nR-1]/r[nR-1];
+        j1[nR-1] = deltaT*      Gamma[nR-1]*Y[nR-1];
         k1[nR-1] = 0;
         //k1[nR-1] = deltaT*phi[nR-1]/r2[nR-1] -Phi[nR-1]/r[nR-1]-0.5*(3*Phi[nR-1] -4*Phi[nR-2] +Phi[nR-3]);
         l1[nR-1] = 0;
@@ -382,25 +386,28 @@ double** iteration(double* r,double* phi,double* X,double* Y,double deltaR,int m
 
 
         //calculate j2, k2 and l2
-        j2[0] = deltaT*      CONST*Gamma[0]*(Y[0]+0.5*l1[0])/r[0];
-        k2[0] = deltaT*r[0]*(-25.0*Gamma[0]*(Y[0]+0.5*l1[0])/r[0] +48.0*Gamma[1]*(Y[1]+0.5*l1[1])/r[1] -36.0*Gamma[2]*(Y[2]+0.5*l1[2])/r[2] 
-                             +16.0*Gamma[3]*(Y[3]+0.5*l1[3])/r[3]  -3.0*Gamma[4]*(Y[4]+0.5*l1[4])/r[4])/(12.0*deltaR);
-        l2[0] = deltaT*     (-25.0*r[3]*Gamma[0]*(X[0]+0.5*k1[0]) +48.0*r[1]*Gamma[1]*(X[1]+0.5*k1[1]) -36.0*r[2]*Gamma[2]*(X[2]+0.5*k1[2])
-                             +16.0*r[0]*Gamma[3]*(X[3]+0.5*k1[3])  -3.0*r[4]*Gamma[4]*(X[4]+0.5*k1[4]))/(12.0*deltaR*r[0]);
-        j2[1] = deltaT*CONST*Gamma[1]*(Y[1]+0.5*l1[1])/r[1];
-        k2[1] = deltaT*r[1]*(Gamma[4]*(Y[4]+0.5*l1[4])/r[4] -6.0*Gamma[3]*(Y[3]+0.5*l1[3])/r[3] +18.0*Gamma[2]*(Y[2]+0.5*l1[2])/r[2]
-                       -10.0*Gamma[1]*(Y[1]+0.5*l1[1])/r[1] -3.0*Gamma[0]*(Y[0]+0.5*l1[0])/r[0])/(12.0*deltaR);
-        l2[1] = deltaT*     (r[4]*Gamma[4]*(X[4]+0.5*k1[4]) -6.0*r[3]*Gamma[3]*(X[3]+0.5*k1[3]) +18.0*r[2]*Gamma[2]*(X[2]+0.5*k1[2])
-                       -10.0*r[1]*Gamma[1]*(X[1]+0.5*k1[1]) -3.0*r[0]*Gamma[0]*(X[0]+0.5*k1[0]))/(12.0*deltaR*r[0]);
+        j2[0] = deltaT*            Gamma[0]*(Y[0]+0.5*l1[0]);
+        //k2[0] = DT_DR*r[0]*(-25.0*Gamma[0]*(Y[0]+0.5*l1[0])/r[0] +48.0*Gamma[1]*(Y[1]+0.5*l1[1])/r[1] -36.0*Gamma[2]*(Y[2]+0.5*l1[2])/r[2]
+        //                    +16.0*Gamma[3]*(Y[3]+0.5*l1[3])/r[3]  -3.0*Gamma[4]*(Y[4]+0.5*l1[4])/r[4])/(12.0);
+        k2[0] = 0;
+        l2[0] = DT_DR*     (-25.0*r[3]*Gamma[0]*(X[0]+0.5*k1[0]) +48.0*r[1]*Gamma[1]*(X[1]+0.5*k1[1]) -36.0*r[2]*Gamma[2]*(X[2]+0.5*k1[2])
+                            +16.0*r[0]*Gamma[3]*(X[3]+0.5*k1[3])  -3.0*r[4]*Gamma[4]*(X[4]+0.5*k1[4]))/(12.0*r[0]);
+        //l2[0] = DT_DR*(-25.0*Gamma[0]*(X[0]+0.5*k1[0]) +48.0*Gamma[1]*(X[1]+0.5*k1[1]) -36.0*Gamma[2]*(X[2]+0.5*k1[2])
+        //               +16.0*Gamma[3]*(X[3]+0.5*k1[3])  -3.0*Gamma[4]*(X[4]+0.5*k1[4]))/(12.0);
+        j2[1] = deltaT*      Gamma[1]*(Y[1]+0.5*l1[1]);
+        k2[1] = DT_DR*r[1]*(Gamma[4]*(Y[4]+0.5*l1[4])/r[4] -6.0*Gamma[3]*(Y[3]+0.5*l1[3])/r[3] +18.0*Gamma[2]*(Y[2]+0.5*l1[2])/r[2]
+                      -10.0*Gamma[1]*(Y[1]+0.5*l1[1])/r[1] -3.0*Gamma[0]*(Y[0]+0.5*l1[0])/r[0])/(12.0);
+        l2[1] = DT_DR*     (r[4]*Gamma[4]*(X[4]+0.5*k1[4]) -6.0*r[3]*Gamma[3]*(X[3]+0.5*k1[3]) +18.0*r[2]*Gamma[2]*(X[2]+0.5*k1[2])
+                      -10.0*r[1]*Gamma[1]*(X[1]+0.5*k1[1]) -3.0*r[0]*Gamma[0]*(X[0]+0.5*k1[0]))/(12.0*r[0]);
         //#pragma omp parallel for
         for(int ir=2;ir<nR-2;ir++){
-            j2[ir] = deltaT*  CONST*Gamma[ir  ]*(Y[ir  ]+0.5*l1[ir  ])/r[ir  ];
-            k2[ir] = deltaT*r[ir]*(-Gamma[ir+2]*(Y[ir+2]+0.5*l1[ir+2])/r[ir+2] +8.0*Gamma[ir+1]*(Y[ir+1]+0.5*l1[ir+1])/r[ir+1] 
-                               -8.0*Gamma[ir-1]*(Y[ir-1]+0.5*l1[ir-1])/r[ir-1]     +Gamma[ir-2]*(Y[ir-2]+0.5*l1[ir-2])/r[ir-2])/(12.0*deltaR);
-            l2[ir] = deltaT*      (-r[ir+2]*Gamma[ir+2]*(X[ir+2]+0.5*k1[ir+2]) +8.0*r[ir+1]*Gamma[ir+1]*(X[ir+1]+0.5*k1[ir+1]) 
-                               -8.0*r[ir-1]*Gamma[ir-1]*(X[ir-1]+0.5*k1[ir-1])     +r[ir-2]*Gamma[ir-2]*(X[ir-2]+0.5*k1[ir-2]))/(12.0*deltaR*r[ir]);
+            j2[ir] = deltaT*        Gamma[ir  ]*(Y[ir  ]+0.5*l1[ir  ]);
+            k2[ir] = DT_DR*r[ir]*(-Gamma[ir+2]*(Y[ir+2]+0.5*l1[ir+2])/r[ir+2] +8.0*Gamma[ir+1]*(Y[ir+1]+0.5*l1[ir+1])/r[ir+1]
+                               -8.0*Gamma[ir-1]*(Y[ir-1]+0.5*l1[ir-1])/r[ir-1]     +Gamma[ir-2]*(Y[ir-2]+0.5*l1[ir-2])/r[ir-2])/(12.0);
+            l2[ir] = DT_DR*      (-r[ir+2]*Gamma[ir+2]*(X[ir+2]+0.5*k1[ir+2]) +8.0*r[ir+1]*Gamma[ir+1]*(X[ir+1]+0.5*k1[ir+1])
+                               -8.0*r[ir-1]*Gamma[ir-1]*(X[ir-1]+0.5*k1[ir-1])     +r[ir-2]*Gamma[ir-2]*(X[ir-2]+0.5*k1[ir-2]))/(12.0*r[ir]);
         }
-        j2[nR-2] = deltaT*CONST*Gamma[nR-2]*(Y[nR-2]+0.5*l1[nR-2])/r[nR-2];
+        j2[nR-2] = deltaT*      Gamma[nR-2]*(Y[nR-2]+0.5*l1[nR-2]);
         k2[nR-2] = 0;
         //k2[nR-2] = deltaT*  (-Gamma[nR-5]*( Pi[nR-5]+0.5*l1[nR-5])    +6.0*Gamma[nR-4]*( Pi[nR-4]+0.5*l1[nR-4])
         //                -18.0*Gamma[nR-3]*( Pi[nR-3]+0.5*l1[nR-3])   +10.0*Gamma[nR-2]*( Pi[nR-2]+0.5*l1[nR-2])
@@ -409,7 +416,7 @@ double** iteration(double* r,double* phi,double* X,double* Y,double deltaR,int m
         //l2[nR-2] = deltaT*(-Epsilon[nR-5]*(Phi[nR-5]+0.5*k1[nR-5])  +6.0*Epsilon[nR-4]*(Phi[nR-4]+0.5*k1[nR-4])
         //              -18.0*Epsilon[nR-3]*(Phi[nR-3]+0.5*k1[nR-3]) +10.0*Epsilon[nR-2]*(Phi[nR-2]+0.5*k1[nR-2])
         //               +3.0*Epsilon[nR-1]*(Phi[nR-1]+0.5*k1[nR-1]))/(12.0*deltaR);
-        j2[nR-1] = deltaT*CONST*Gamma[nR-1]*(Y[nR-1]+0.5*l1[nR-1])/r[nR-1];
+        j2[nR-1] = deltaT*      Gamma[nR-1]*(Y[nR-1]+0.5*l1[nR-1]);
         k2[nR-1] = 0;
         //k2[nR-1] = deltaT*(phi[nR-1]+0.5*j1[nR-1])/r2[nR-1] -(Phi[nR-1]+0.5*k1[nR-1])/r[nR-1]
         //          -0.5*(3*(Phi[nR-1]+0.5*k1[nR-1])        -4*(Phi[nR-2]+0.5*k1[nR-2]) 
@@ -424,25 +431,28 @@ double** iteration(double* r,double* phi,double* X,double* Y,double deltaR,int m
 
 
         //calculate j3, k3 and l3
-        j3[0] = deltaT*      CONST*Gamma[0]*(Y[0]+0.5*l2[0])/r[0];
-        k3[0] = deltaT*r[0]*(-25.0*Gamma[0]*(Y[0]+0.5*l2[0])/r[0] +48.0*Gamma[1]*(Y[1]+0.5*l2[1])/r[1] -36.0*Gamma[2]*(Y[2]+0.5*l2[2])/r[2]
-                             +16.0*Gamma[3]*(Y[3]+0.5*l2[3])/r[3]  -3.0*Gamma[4]*(Y[4]+0.5*l2[4])/r[4])/(12.0*deltaR);
-        l3[0] = deltaT*     (-25.0*r[0]*Gamma[0]*(X[0]+0.5*k2[0]) +48.0*r[1]*Gamma[1]*(X[1]+0.5*k2[1]) -36.0*r[2]*Gamma[2]*(X[2]+0.5*k2[2])
-                             +16.0*r[3]*Gamma[3]*(X[3]+0.5*k2[3])  -3.0*r[4]*Gamma[4]*(X[4]+0.5*k2[4]))/(12.0*deltaR*r[0]);
-        j3[1] = deltaT*CONST*Gamma[1]*(Y[1]+0.5*l2[1])/r[1];
-        k3[1] = deltaT*r[1]*(Gamma[4]*(Y[4]+0.5*l2[4])/r[4] -6.0*Gamma[3]*(Y[3]+0.5*l2[3])/r[3] +18.0*Gamma[2]*(Y[2]+0.5*l2[2])/r[2]
-                       -10.0*Gamma[1]*(Y[1]+0.5*l2[1])/r[1] -3.0*Gamma[0]*(Y[0]+0.5*l2[0])/r[0])/(12.0*deltaR);
-        l3[1] = deltaT*     (r[4]*Gamma[4]*(X[4]+0.5*k2[4]) -6.0*r[3]*Gamma[3]*(X[3]+0.5*k2[3]) +18.0*r[2]*Gamma[2]*(X[2]+0.5*k2[2])
-                       -10.0*r[1]*Gamma[1]*(X[1]+0.5*k2[1]) -3.0*r[0]*Gamma[0]*(X[0]+0.5*k2[0]))/(12.0*deltaR*r[1]);
+        j3[0] = deltaT*            Gamma[0]*(Y[0]+0.5*l2[0]);
+        //k3[0] = DT_DR*r[0]*(-25.0*Gamma[0]*(Y[0]+0.5*l2[0])/r[0] +48.0*Gamma[1]*(Y[1]+0.5*l2[1])/r[1] -36.0*Gamma[2]*(Y[2]+0.5*l2[2])/r[2]
+        //                    +16.0*Gamma[3]*(Y[3]+0.5*l2[3])/r[3]  -3.0*Gamma[4]*(Y[4]+0.5*l2[4])/r[4])/(12.0);
+        k3[0] = 0;
+        l3[0] = DT_DR*     (-25.0*r[0]*Gamma[0]*(X[0]+0.5*k2[0]) +48.0*r[1]*Gamma[1]*(X[1]+0.5*k2[1]) -36.0*r[2]*Gamma[2]*(X[2]+0.5*k2[2])
+                            +16.0*r[3]*Gamma[3]*(X[3]+0.5*k2[3])  -3.0*r[4]*Gamma[4]*(X[4]+0.5*k2[4]))/(12.0*r[0]);
+        //l3[0] = DT_DR*(-25.0*Gamma[0]*(X[0]+0.5*k2[0]) +48.0*Gamma[1]*(X[1]+0.5*k2[1]) -36.0*Gamma[2]*(X[2]+0.5*k2[2])
+        //               +16.0*Gamma[3]*(X[3]+0.5*k2[3])  -3.0*Gamma[4]*(X[4]+0.5*k2[4]))/(12.0);
+        j3[1] = deltaT*      Gamma[1]*(Y[1]+0.5*l2[1]);
+        k3[1] = DT_DR*r[1]*(Gamma[4]*(Y[4]+0.5*l2[4])/r[4] -6.0*Gamma[3]*(Y[3]+0.5*l2[3])/r[3] +18.0*Gamma[2]*(Y[2]+0.5*l2[2])/r[2]
+                      -10.0*Gamma[1]*(Y[1]+0.5*l2[1])/r[1] -3.0*Gamma[0]*(Y[0]+0.5*l2[0])/r[0])/(12.0);
+        l3[1] = DT_DR*     (r[4]*Gamma[4]*(X[4]+0.5*k2[4]) -6.0*r[3]*Gamma[3]*(X[3]+0.5*k2[3]) +18.0*r[2]*Gamma[2]*(X[2]+0.5*k2[2])
+                      -10.0*r[1]*Gamma[1]*(X[1]+0.5*k2[1]) -3.0*r[0]*Gamma[0]*(X[0]+0.5*k2[0]))/(12.0*r[1]);
         //#pragma omp parallel for
         for(int ir=2;ir<nR-2;ir++){
-            j3[ir] = deltaT*  CONST*Gamma[ir  ]*(Y[ir  ]+0.5*l2[ir  ])/r[ir  ];
-            k3[ir] = deltaT*r[ir]*(-Gamma[ir+2]*(Y[ir+2]+0.5*l2[ir+2])/r[ir+2] +8.0*Gamma[ir+1]*(Y[ir+1]+0.5*l2[ir+1])/r[ir+1] 
-                               -8.0*Gamma[ir-1]*(Y[ir-1]+0.5*l2[ir-1])/r[ir-1]     +Gamma[ir-2]*(Y[ir-2]+0.5*l2[ir-2])/r[ir-2])/(12.0*deltaR);
-            l3[ir] = deltaT*      (-r[ir+2]*Gamma[ir+2]*(X[ir+2]+0.5*k2[ir+2]) +8.0*r[ir+1]*Gamma[ir+1]*(X[ir+1]+0.5*k2[ir+1]) 
-                               -8.0*r[ir-1]*Gamma[ir-1]*(X[ir-1]+0.5*k2[ir-1])     +r[ir-2]*Gamma[ir-2]*(X[ir-2]+0.5*k2[ir-2]))/(12.0*deltaR*r[ir]);
+            j3[ir] = deltaT*        Gamma[ir  ]*(Y[ir  ]+0.5*l2[ir  ]);
+            k3[ir] = DT_DR*r[ir]*(-Gamma[ir+2]*(Y[ir+2]+0.5*l2[ir+2])/r[ir+2] +8.0*Gamma[ir+1]*(Y[ir+1]+0.5*l2[ir+1])/r[ir+1]
+                               -8.0*Gamma[ir-1]*(Y[ir-1]+0.5*l2[ir-1])/r[ir-1]     +Gamma[ir-2]*(Y[ir-2]+0.5*l2[ir-2])/r[ir-2])/(12.0);
+            l3[ir] = DT_DR*      (-r[ir+2]*Gamma[ir+2]*(X[ir+2]+0.5*k2[ir+2]) +8.0*r[ir+1]*Gamma[ir+1]*(X[ir+1]+0.5*k2[ir+1])
+                               -8.0*r[ir-1]*Gamma[ir-1]*(X[ir-1]+0.5*k2[ir-1])     +r[ir-2]*Gamma[ir-2]*(X[ir-2]+0.5*k2[ir-2]))/(12.0*r[ir]);
         }
-        j3[nR-2] = deltaT*CONST*Gamma[nR-2]*(Y[nR-2]+0.5*l2[nR-2])/r[nR-2];
+        j3[nR-2] = deltaT*      Gamma[nR-2]*(Y[nR-2]+0.5*l2[nR-2]);
         k3[nR-2] = 0;
         //k3[nR-2] = deltaT*  (-Gamma[nR-5]*( Pi[nR-5]+0.5*l2[nR-5])    +6.0*Gamma[nR-4]*( Pi[nR-4]+0.5*l2[nR-4])
         //                -18.0*Gamma[nR-3]*( Pi[nR-3]+0.5*l2[nR-3])   +10.0*Gamma[nR-2]*( Pi[nR-2]+0.5*l2[nR-2])
@@ -451,7 +461,7 @@ double** iteration(double* r,double* phi,double* X,double* Y,double deltaR,int m
         //l3[nR-2] = deltaT*(-Epsilon[nR-5]*(Phi[nR-5]+0.5*k2[nR-5])  +6.0*Epsilon[nR-4]*(Phi[nR-4]+0.5*k2[nR-4])
         //              -18.0*Epsilon[nR-3]*(Phi[nR-3]+0.5*k2[nR-3]) +10.0*Epsilon[nR-2]*(Phi[nR-2]+0.5*k2[nR-2])
         //               +3.0*Epsilon[nR-1]*(Phi[nR-1]+0.5*k2[nR-1]))/(12.0*deltaR);
-        j3[nR-1] = deltaT*CONST*Gamma[nR-1]*(Y[nR-1]+0.5*l2[nR-1])/r[nR-1];
+        j3[nR-1] = deltaT*      Gamma[nR-1]*(Y[nR-1]+0.5*l2[nR-1]);
         k3[nR-1] = 0;
         //k3[nR-1] = deltaT*(phi[nR-1]+0.5*j2[nR-1])/r2[nR-1] -(Phi[nR-1]+0.5*k2[nR-1])/r[nR-1]
         //          -0.5*(3*(Phi[nR-1]+0.5*k2[nR-1])        -4*(Phi[nR-2]+0.5*k2[nR-2]) 
@@ -466,25 +476,28 @@ double** iteration(double* r,double* phi,double* X,double* Y,double deltaR,int m
 
 
         //calculate j4, k4 and l4
-        j4[0] = deltaT*      CONST*Gamma[0]*(Y[0]+l3[0])/r[0];
-        k4[0] = deltaT*r[0]*(-25.0*Gamma[0]*(Y[0]+l3[0])/r[0] +48.0*Gamma[1]*(Y[1]+l3[1])/r[1] -36.0*Gamma[2]*(Y[2]+l3[2])/r[2]
-                             +16.0*Gamma[3]*(Y[3]+l3[3])/r[3]  -3.0*Gamma[4]*(Y[4]+l3[4])/r[4])/(12.0*deltaR);
-        l4[0] = deltaT*     (-25.0*r[0]*Gamma[0]*(X[0]+k3[0]) +48.0*r[1]*Gamma[1]*(X[1]+k3[1]) -36.0*r[2]*Gamma[2]*(X[2]+k3[2])
-                             +16.0*r[3]*Gamma[3]*(X[3]+k3[3])  -3.0*r[4]*Gamma[4]*(X[4]+k3[4]))/(12.0*deltaR*r[0]);
-        j4[1] = deltaT*CONST*Gamma[1]*(Y[1]+l3[1])/r[1];
-        k4[1] = deltaT*r[1]*(Gamma[4]*(Y[4]+l3[4])/r[4] -6.0*Gamma[3]*(Y[3]+l3[3])/r[3] +18.0*Gamma[2]*(Y[2]+l3[2])/r[2]
-                       -10.0*Gamma[1]*(Y[1]+l3[1])/r[1] -3.0*Gamma[0]*(Y[0]+l3[0])/r[0])/(12.0*deltaR);
-        l4[1] = deltaT*     (r[4]*Gamma[4]*(X[4]+k3[4]) -6.0*r[3]*Gamma[3]*(X[3]+k3[3]) +18.0*r[2]*Gamma[2]*(X[2]+k3[2])
-                       -10.0*r[1]*Gamma[1]*(X[1]+k3[1]) -3.0*r[0]*Gamma[0]*(X[0]+k3[0]))/(12.0*deltaR*r[1]);
+        j4[0] = deltaT*            Gamma[0]*(Y[0]+l3[0]);
+        //k4[0] = DT_DR*r[0]*(-25.0*Gamma[0]*(Y[0]+l3[0])/r[0] +48.0*Gamma[1]*(Y[1]+l3[1])/r[1] -36.0*Gamma[2]*(Y[2]+l3[2])/r[2]
+        //                     +16.0*Gamma[3]*(Y[3]+l3[3])/r[3]  -3.0*Gamma[4]*(Y[4]+l3[4])/r[4])/(12.0);
+        k4[0] = 0;
+        l4[0] = DT_DR*(-25.0*r[0]*Gamma[0]*(X[0]+k3[0]) +48.0*r[1]*Gamma[1]*(X[1]+k3[1]) -36.0*r[2]*Gamma[2]*(X[2]+k3[2])
+                       +16.0*r[3]*Gamma[3]*(X[3]+k3[3])  -3.0*r[4]*Gamma[4]*(X[4]+k3[4]))/(12.0*r[0]);
+        //l4[0] = DT_DR*(-25.0*Gamma[0]*(X[0]+k3[0]) +48.0*Gamma[1]*(X[1]+k3[1]) -36.0*Gamma[2]*(X[2]+k3[2])
+        //               +16.0*Gamma[3]*(X[3]+k3[3])  -3.0*Gamma[4]*(X[4]+k3[4]))/(12.0);
+        j4[1] = deltaT*      Gamma[1]*(Y[1]+l3[1]);
+        k4[1] = DT_DR*r[1]*(Gamma[4]*(Y[4]+l3[4])/r[4] -6.0*Gamma[3]*(Y[3]+l3[3])/r[3] +18.0*Gamma[2]*(Y[2]+l3[2])/r[2]
+                      -10.0*Gamma[1]*(Y[1]+l3[1])/r[1] -3.0*Gamma[0]*(Y[0]+l3[0])/r[0])/(12.0);
+        l4[1] = DT_DR*     (r[4]*Gamma[4]*(X[4]+k3[4]) -6.0*r[3]*Gamma[3]*(X[3]+k3[3]) +18.0*r[2]*Gamma[2]*(X[2]+k3[2])
+                      -10.0*r[1]*Gamma[1]*(X[1]+k3[1]) -3.0*r[0]*Gamma[0]*(X[0]+k3[0]))/(12.0*r[1]);
         //#pragma omp parallel for
         for(int ir=2;ir<nR-2;ir++){
-            j4[ir] = deltaT*  CONST*Gamma[ir  ]*(Y[ir  ]+l3[ir  ])/r[ir  ];
-            k4[ir] = deltaT*r[ir]*(-Gamma[ir+2]*(Y[ir+2]+l3[ir+2])/r[ir+2] +8.0*Gamma[ir+1]*(Y[ir+1]+l3[ir+1])/r[ir+1] 
-                               -8.0*Gamma[ir-1]*(Y[ir-1]+l3[ir-1])/r[ir-1]     +Gamma[ir-2]*(Y[ir-2]+l3[ir-2])/r[ir-2])/(12.0*deltaR);
-            l4[ir] = deltaT*      (-r[ir+2]*Gamma[ir+2]*(X[ir+2]+k3[ir+2]) +8.0*r[ir+1]*Gamma[ir+1]*(X[ir+1]+k3[ir+1]) 
-                               -8.0*r[ir-1]*Gamma[ir-1]*(X[ir-1]+k3[ir-1])     +r[ir-2]*Gamma[ir-2]*(X[ir-2]+k3[ir-2]))/(12.0*deltaR*r[ir]);
+            j4[ir] = deltaT*        Gamma[ir  ]*(Y[ir  ]+l3[ir  ]);
+            k4[ir] = DT_DR*r[ir]*(-Gamma[ir+2]*(Y[ir+2]+l3[ir+2])/r[ir+2] +8.0*Gamma[ir+1]*(Y[ir+1]+l3[ir+1])/r[ir+1]
+                               -8.0*Gamma[ir-1]*(Y[ir-1]+l3[ir-1])/r[ir-1]     +Gamma[ir-2]*(Y[ir-2]+l3[ir-2])/r[ir-2])/(12.0);
+            l4[ir] = DT_DR*      (-r[ir+2]*Gamma[ir+2]*(X[ir+2]+k3[ir+2]) +8.0*r[ir+1]*Gamma[ir+1]*(X[ir+1]+k3[ir+1])
+                               -8.0*r[ir-1]*Gamma[ir-1]*(X[ir-1]+k3[ir-1])     +r[ir-2]*Gamma[ir-2]*(X[ir-2]+k3[ir-2]))/(12.0*r[ir]);
         }
-        j4[nR-2] = deltaT*CONST*Gamma[nR-2]*(Y[nR-2]+l3[nR-2])/r[nR-2];
+        j4[nR-2] = deltaT*      Gamma[nR-2]*(Y[nR-2]+l3[nR-2]);
         k4[nR-2] = 0;
         //k4[nR-2] = deltaT*  (-Gamma[nR-5]*( Pi[nR-5]+l3[nR-5])    +6.0*Gamma[nR-4]*( Pi[nR-4]+l3[nR-4])
         //                -18.0*Gamma[nR-3]*( Pi[nR-3]+l3[nR-3])   +10.0*Gamma[nR-2]*( Pi[nR-2]+l3[nR-2])
@@ -493,7 +506,7 @@ double** iteration(double* r,double* phi,double* X,double* Y,double deltaR,int m
         //l4[nR-2] = deltaT*(-Epsilon[nR-5]*(Phi[nR-5]+k3[nR-5])  +6.0*Epsilon[nR-4]*(Phi[nR-4]+k3[nR-4])
         //              -18.0*Epsilon[nR-3]*(Phi[nR-3]+k3[nR-3]) +10.0*Epsilon[nR-2]*(Phi[nR-2]+k3[nR-2])
         //               +3.0*Epsilon[nR-1]*(Phi[nR-1]+k3[nR-1]))/(12.0*deltaR);
-        j4[nR-1] = deltaT*CONST*Gamma[nR-1]*(Y[nR-1]+l3[nR-1])/r[nR-1];
+        j4[nR-1] = deltaT*      Gamma[nR-1]*(Y[nR-1]+l3[nR-1]);
         k4[nR-1] = 0;
         //k4[nR-1] = deltaT*(phi[nR-1]+j3[nR-1])/r2[nR-1] -(Phi[nR-1]+k3[nR-1])/r[nR-1]
         //          -0.5*(3*(Phi[nR-1]+k3[nR-1])        -4*(Phi[nR-2]+k3[nR-2]) +Phi[nR-3]+k3[nR-3]); 
@@ -594,11 +607,9 @@ void print_data(double** hist,int fType,double* model_parameters,int iterations,
     snprintf(fileName, sizeof(fileName), "Output_%02d%02d%02d.dat", tm.tm_hour, tm.tm_min, tm.tm_sec);
     FILE* data = fopen(fileName,"w");
     //Print all parameters 
-         if(METRIC == 0) fprintf(data,"Metric: Minkowski\n");
-    else if(METRIC == 1) fprintf(data,"Metric: Choptuik\n");
-    else if(METRIC == 2) fprintf(data,"Metric: Modified Choptuik\n");
-    else if(METRIC == 3) fprintf(data,"Metric: Choptuik Euler\n");
-    else if(METRIC == 4) fprintf(data,"Metric: Modified Choptuik Euler\n");
+         if(METRIC == 0) fprintf(data,"Metric: Minkowski XY\n");
+    else if(METRIC == 1) fprintf(data,"Metric: Choptuik XY\n");
+    else if(METRIC == 2) fprintf(data,"Metric: Modified Choptuik XY\n");
     else                 fprintf(data,"Metric: Other\n");
          if(fType == 0) fprintf(data,"Function type: Hyperbolic Tan\n");
     else if(fType == 1) fprintf(data,"Function type: Exponential\n");

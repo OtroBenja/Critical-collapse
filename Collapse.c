@@ -12,16 +12,32 @@ void omp_set_num_threads(){return;}
 #endif
 
 #define MASS 0
-#define METRIC 4 // 0 = minkowski; 1 = choptuik; 2 = modified choptuik
-#define SAVE_MODE 1 // 0 = save uniformly on every SAVE_RES and SAVE_ITERATION ; 1 = save all points after FIRST_ITERATION and with r > MIN_R
-#define SAVE_RES 50
-#define SAVE_ITERATION 10
+#define METRIC 0 // 0 = minkowski; 1 = choptuik; 2 = modified choptuik
+#define SAVE_MODE 0 // 0 = save uniformly on every SAVE_RES and SAVE_ITERATION ; 1 = save all points after FIRST_ITERATION and with r > MIN_R
+#define SAVE_RES 20
+#define SAVE_ITERATION 100
 #define FIRST_ITERATION 7795
 #define MIN_R 50
 #define ITERATIONS 78100
 #define EPSILON 0.0 // Default Kreiss-Oliger dampening
 #define PI 3.141592653
 #define E  2.718281828
+
+double leftmost_D1(double *f,int idx,double deltaR){
+    return (-25.0*f[idx] +48.0*f[idx+1] -36.0*f[idx+2] +16.0*f[idx+3] -3.0*f[idx+4])/(12.0*deltaR);
+}
+double leftmid_D1(double *f,int idx,double deltaR){
+    return (-3.0*f[idx-1] -10.0*f[idx] +18.0*f[idx+1] -6.0*f[idx+2] +1.0*f[idx+3])/(12.0*deltaR);
+}
+double centered_D1(double *f,int idx,double deltaR){
+    return (f[idx-2] -8.0*f[idx-1] +8.0*f[idx+1] -f[idx+2])/(12.0*deltaR);
+}
+double rightmid_D1(double *f,int idx,double deltaR){
+    return (-1.0*f[idx-3] +6.0*f[idx-2] +18.0*f[idx-1] +10.0*f[idx] +3.0*f[idx+1])/(12.0*deltaR);
+}
+double rightmost_D1(double *f,int idx,double deltaR){
+    return (3.0*f[idx-4] -16.0*f[idx-3] +36.0*f[idx-2] -48.0*f[idx-1] +25.0*f[idx])/(12.0*deltaR);
+}
 
 double** initialize_field(int fType,double* model_parameters,double deltaR,int maxR){
     double p0 = model_parameters[0];
@@ -213,11 +229,20 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
     for(int ir=0;ir<nR;ir++){
         a[ir] = 1.;
         alpha[ir] = 1.;
-        Gamma[ir] = 1.;
-        r2[ir] = r[ir]*r[ir];
-        Epsilon[ir] = r2[ir];
-        Zeta[ir] = r[ir];
     }
+    if(METRIC == 0){
+        for(int i=1;i<nR;i++){
+            a[i] = 1.0 + 0.0001*pow(r[i],3)*pow(E,-pow((r[i]-10.0)/10,2));
+            alpha[i] = pow(E,r[i]/100);
+        }
+    }
+    for(int ir=0;ir<nR;ir++){
+        Gamma[ir] = alpha[ir]/a[ir];
+        r2[ir] = r[ir]*r[ir];
+        Epsilon[ir] = r2[ir]*Gamma[ir];
+        Zeta[ir] = r[ir]/(a[ir]*a[ir]);
+    }
+    
     for(int i=0;i<iterations;i++){
         //printf("Iteration %d\n",i);
         //If on minkowski metric, do not solve a and alpha
@@ -399,6 +424,9 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         //Advance Pi and Phi using RK4 
 
         //calculate j1, k1 and l1
+        //for(int ir=0;ir<nR;ir++){
+        //    Gamma[ir] = alpha[ir]/a[ir]
+        //}
         j1[0] = deltaT*         Gamma[0]* Pi[0];
         k1[0] = deltaT*  (-25.0*Gamma[0]* Pi[0]   +48.0*Gamma[1]* Pi[1]   -36.0*Gamma[2]* Pi[2] 
                           +16.0*Gamma[3]* Pi[3]    -3.0*Gamma[4]* Pi[4])/(12.0*deltaR);

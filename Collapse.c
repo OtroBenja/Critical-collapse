@@ -34,7 +34,7 @@ double centered_D1(double *f,int idx,double deltaR){
     return (f[idx-2] -8.0*f[idx-1] +8.0*f[idx+1] -f[idx+2])/(12.0*deltaR);
 }
 double rightmid_D1(double *f,int idx,double deltaR){
-    return (-1.0*f[idx-3] +6.0*f[idx-2] +18.0*f[idx-1] +10.0*f[idx] +3.0*f[idx+1])/(12.0*deltaR);
+    return (-1.0*f[idx-3] +6.0*f[idx-2] -18.0*f[idx-1] +10.0*f[idx] +3.0*f[idx+1])/(12.0*deltaR);
 }
 double rightmost_D1(double *f,int idx,double deltaR){
     return (3.0*f[idx-4] -16.0*f[idx-3] +36.0*f[idx-2] -48.0*f[idx-1] +25.0*f[idx])/(12.0*deltaR);

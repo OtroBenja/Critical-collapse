@@ -22,6 +22,7 @@ void omp_set_num_threads(){return;}
 #define EPSILON 0.0 // Default Kreiss-Oliger dampening
 #define PI 3.141592653
 #define E  2.718281828
+#define _6 0.166666666 // 1/6
 
 double leftmost_D1(double *f,int idx,double deltaR){
     return (-25.0*f[idx] +48.0*f[idx+1] -36.0*f[idx+2] +16.0*f[idx+3] -3.0*f[idx+4])/(12.0*deltaR);
@@ -38,12 +39,13 @@ double rightmid_D1(double *f,int idx,double deltaR){
 double rightmost_D1(double *f,int idx,double deltaR){
     return (3.0*f[idx-4] -16.0*f[idx-3] +36.0*f[idx-2] -48.0*f[idx-1] +25.0*f[idx])/(12.0*deltaR);
 }
-double leftmost_Pi_dot(double* Phi,double *a,double *alpha,double deltaR){
-    double *f = malloc(sizeof(double)*5);
-    for(int i=0;i<5;i++)
-        f[i] = Phi[i]*a[i]/alpha[i];
-    return leftmost_D1(f,0,deltaR);
+double centered_r0_D1(double *f,double deltaR){
+    return (-f[2] +8.0*f[1] +8.0*f[1] -f[2])/(12.0*deltaR);
 }
+double centered_r1_D1(double *f,double deltaR){
+    return (-f[1] -8.0*f[0] +8.0*f[2] -f[3])/(12.0*deltaR);
+}
+
 
 double** initialize_field(int fType,double* model_parameters,double deltaR,int maxR){
     double p0 = model_parameters[0];
@@ -191,18 +193,17 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
     double *Pi_ko = malloc(sizeof(double)*nR);
     double ko_c = pow(-1,3)*epsilon/5.;
     double *r2 = malloc(sizeof(double)*nR);
-    double *j1 = malloc(sizeof(double)*nR);
-    double *k1 = malloc(sizeof(double)*nR);
-    double *l1 = malloc(sizeof(double)*nR);
-    double *j2 = malloc(sizeof(double)*nR);
-    double *k2 = malloc(sizeof(double)*nR);
-    double *l2 = malloc(sizeof(double)*nR);
-    double *j3 = malloc(sizeof(double)*nR);
-    double *k3 = malloc(sizeof(double)*nR);
-    double *l3 = malloc(sizeof(double)*nR);
-    double *j4 = malloc(sizeof(double)*nR);
-    double *k4 = malloc(sizeof(double)*nR);
-    double *l4 = malloc(sizeof(double)*nR);
+    double *j_minus1 = malloc(sizeof(double)*nR);
+    double *k_minus1 = malloc(sizeof(double)*nR);
+    double *l_minus1 = malloc(sizeof(double)*nR);
+    double *j_n = malloc(sizeof(double)*nR);
+    double *k_n = malloc(sizeof(double)*nR);
+    double *l_n = malloc(sizeof(double)*nR);
+    double *j_sum = malloc(sizeof(double)*nR);
+    double *k_sum = malloc(sizeof(double)*nR);
+    double *l_sum = malloc(sizeof(double)*nR);
+    double  rk[4] = {1.0,2.0,2.0,1.0};
+    double _rk[4] = {1.0,0.5,0.5,1.0};
     double m1, n1, m2, n2, m3, n3, m4, n4;
     double *m, *n;
     if(METRIC==5){
@@ -409,123 +410,6 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
             }
         }
 
-        //Advance Pi and Phi using RK4 
-
-        //calculate j1, k1 and l1
-        for(int ir=0;ir<nR;ir++){
-            Gamma[ir]   =        alpha[ir]* Pi[ir]/a[ir];
-            Epsilon[ir] = r2[ir]*alpha[ir]*Phi[ir]/a[ir];
-        }
-        for(int ir=0;ir<5;ir++)
-            Chi[ir] = alpha[ir]*Phi[ir]/a[ir];
-        
-
-        j1[0] = Gamma[0];
-        //k1[0] = leftmost_D1(Gamma,0,deltaR);
-        k1[0] = 0;
-        //l1[0] = leftmost_D1(Epsilon,0,deltaR)/r2[0];
-        l1[0] = leftmost_D1(Chi,0,deltaR);
-        j1[1] = Gamma[1];
-        k1[1] = leftmid_D1(Gamma,1,deltaR);
-        l1[1] = leftmid_D1(Epsilon,1,deltaR)/r2[1];
-        //#pragma omp parallel for
-        for(int ir=2;ir<nR-2;ir++){
-            j1[ir] = Gamma[ir];
-            k1[ir] = centered_D1(Gamma,ir,deltaR);
-            l1[ir] = centered_D1(Epsilon,ir,deltaR)/r2[ir];
-        }
-        j1[nR-2] = Gamma[nR-2];
-        k1[nR-2] = 0;
-        l1[nR-2] = 0;
-        j1[nR-1] = Gamma[nR-1];
-        k1[nR-1] = 0;
-        l1[nR-1] = 0;
-
-
-        //calculate j2, k2 and l2
-        for(int ir=0;ir<nR;ir++){
-            Gamma[ir]   =        alpha[ir]*( Pi[ir]+0.5*deltaT*l1[ir])/a[ir];
-            Epsilon[ir] = r2[ir]*alpha[ir]*(Phi[ir]+0.5*deltaT*k1[ir])/a[ir];
-        }
-        for(int ir=0;ir<5;ir++)
-            Chi[ir] = alpha[ir]*(Phi[ir]+0.5*deltaT*k1[ir])/a[ir];
-
-        j2[0] = Gamma[0];
-        //k2[0] = leftmost_D1(Gamma,0,deltaR);
-        k2[0] = 0;
-        //l2[0] = leftmost_D1(Epsilon,0,deltaR)/r2[0];
-        l2[0] = leftmost_D1(Chi,0,deltaR);
-        j2[1] = Gamma[1];
-        k2[1] = leftmid_D1(Gamma,1,deltaR);
-        l2[1] = leftmid_D1(Epsilon,1,deltaR)/r2[1];
-        for(int ir=2;ir<nR-2;ir++){
-            j2[ir] = Gamma[ir];
-            k2[ir] = centered_D1(Gamma,ir,deltaR);
-            l2[ir] = centered_D1(Epsilon,ir,deltaR)/r2[ir];
-        }
-        j2[nR-2] = Gamma[nR-2];
-        k2[nR-2] = 0;
-        l2[nR-2] = 0;
-        j2[nR-1] = Gamma[nR-1];
-        k2[nR-1] = 0;
-        l2[nR-1] = 0;
-
-        //calculate j3, k3 and l3
-        for(int ir=0;ir<nR;ir++){
-            Gamma[ir]   =        alpha[ir]*( Pi[ir]+0.5*deltaT*l2[ir])/a[ir];
-            Epsilon[ir] = r2[ir]*alpha[ir]*(Phi[ir]+0.5*deltaT*k2[ir])/a[ir];
-        }
-        for(int ir=0;ir<5;ir++)
-            Chi[ir] = alpha[ir]*(Phi[ir]+0.5*deltaT*k2[ir])/a[ir];
-
-        j3[0] = Gamma[0];
-        //k3[0] = leftmost_D1(Gamma,0,deltaR);
-        k3[0] = 0;
-        //l3[0] = leftmost_D1(Epsilon,0,deltaR)/r2[0];
-        l3[0] = leftmost_D1(Chi,0,deltaR);
-        j3[1] = Gamma[1];
-        k3[1] = leftmid_D1(Gamma,1,deltaR);
-        l3[1] = leftmid_D1(Epsilon,1,deltaR)/r2[1];
-        for(int ir=2;ir<nR-2;ir++){
-            j3[ir] = Gamma[ir];
-            k3[ir] = centered_D1(Gamma,ir,deltaR);
-            l3[ir] = centered_D1(Epsilon,ir,deltaR)/(r2[ir]);
-        }
-        j3[nR-2] = Gamma[nR-2];
-        k3[nR-2] = 0;
-        l3[nR-2] = 0;
-        j3[nR-1] = Gamma[nR-1];
-        k3[nR-1] = 0;
-        l3[nR-1] = 0;
-
-        //calculate j4, k4 and l4
-        for(int ir=0;ir<nR;ir++){
-            Gamma[ir]   =        alpha[ir]*( Pi[ir]+deltaT*l3[ir])/a[ir];
-            Epsilon[ir] = r2[ir]*alpha[ir]*(Phi[ir]+deltaT*k3[ir])/a[ir];
-        }
-        for(int ir=0;ir<5;ir++)
-            Chi[ir] = alpha[ir]*(Phi[ir]+deltaT*k3[ir])/a[ir];
-
-        j4[0] = Gamma[0];
-        //k4[0] = leftmost_D1(  Gamma,0,deltaR);
-        k4[0] = 0;
-        //l4[0] = leftmost_D1(Epsilon,0,deltaR)/r2[0];
-        l4[0] = leftmost_D1(Chi,0,deltaR);
-        j4[1] = Gamma[1];
-        k4[1] = leftmid_D1(  Gamma,1,deltaR);
-        l4[1] = leftmid_D1(Epsilon,1,deltaR)/r2[1];
-        for(int ir=2;ir<nR-2;ir++){
-            j4[ir] = Gamma[ir];
-            k4[ir] = centered_D1(  Gamma,ir,deltaR);
-            l4[ir] = centered_D1(Epsilon,ir,deltaR)/(r2[ir]);
-        }
-        j4[nR-2] = Gamma[nR-2];
-        k4[nR-2] = 0;
-        l4[nR-2] = 0;
-        j4[nR-1] = Gamma[nR-1];
-        k4[nR-1] = 0;
-        l4[nR-1] = 0;
-
         //Calculate Kreiss-Oliger dissipation of 6th order for next step
         Phi_ko[0] = (14.71804060*Phi[0]-99.3467741*Phi[1]+287.0017918*Phi[2]-459.938769*Phi[3]+441.5412182*Phi[4]-253.8862004*Phi[5]+80.9492233*Phi[6]-11.03853045*Phi[7])/3.67951015;
         Pi_ko[ 0] = (14.71804060* Pi[0]-99.3467741* Pi[1]+287.0017918* Pi[2]-459.938769* Pi[3]+441.5412182* Pi[4]-253.8862004* Pi[5]+80.9492233* Pi[6]-11.03853045* Pi[7])/3.67951015;
@@ -556,11 +440,60 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         Phi_ko[nR-1] = Phi[nR-4]-6.0*Phi[nR-3]+15.0*Phi[nR-2]-20.0*Phi[nR-1];
         Pi_ko[ nR-1] =  Pi[nR-4]-6.0* Pi[nR-3]+15.0* Pi[nR-2]-20.0* Pi[nR-1];
 
+        //Advance phi, Phi and Pi using RK4 
+
+        for(int ir=0;ir<nR;ir++){
+            l_n[ir] = 0.0;
+            k_n[ir] = 0.0;
+            j_sum[ir] = 0.0;
+            k_sum[ir] = 0.0;
+            l_sum[ir] = 0.0;
+        }
+        //calculate jn, kn and ln
+        for(int n=0;n<4;n++){
+            for(int ir=0;ir<nR;ir++){
+                Gamma[ir]   =        alpha[ir]*( Pi[ir]+_rk[n]*deltaT*l_n[ir])/a[ir];
+                Epsilon[ir] = r2[ir]*alpha[ir]*(Phi[ir]+_rk[n]*deltaT*k_n[ir])/a[ir];
+            }
+            for(int ir=0;ir<5;ir++)
+                Chi[ir] = alpha[ir]*(Phi[ir]+_rk[n]*deltaT*k_n[ir])/a[ir];
+
+            j_n[0] = Gamma[0];
+            //k_n[0] = leftmost_D1(Gamma,0,deltaR);
+            //l_n[0] = leftmost_D1(Epsilon,0,deltaR)/r2[0];
+            k_n[0] = 0;
+            l_n[0] = centered_r0_D1(Chi,deltaR);
+            j_n[1] = Gamma[1];
+            //k_n[1] = leftmid_D1(Gamma,1,deltaR);
+            //l_n[1] = leftmid_D1(Epsilon,1,deltaR)/r2[1];
+            k_n[1] = centered_r1_D1(Gamma,deltaR);
+            l_n[1] = centered_r1_D1(Epsilon,deltaR)/r2[1];
+            //#pragma omp parallel for
+            for(int ir=2;ir<nR-2;ir++){
+                j_n[ir] = Gamma[ir];
+                k_n[ir] = centered_D1(Gamma,ir,deltaR);
+                l_n[ir] = centered_D1(Epsilon,ir,deltaR)/r2[ir];
+            }
+            j_n[nR-2] = Gamma[nR-2];
+            k_n[nR-2] = 0;
+            l_n[nR-2] = 0;
+            j_n[nR-1] = Gamma[nR-1];
+            k_n[nR-1] = 0;
+            l_n[nR-1] = 0;
+
+            //Calculate phi, Phi and Pi on next step
+            for(int ir=0;ir<nR;ir++){
+                j_sum[ir] += rk[n]*j_n[ir];
+                k_sum[ir] += rk[n]*k_n[ir];
+                l_sum[ir] += rk[n]*l_n[ir];
+            }
+        }
+
         //Calculate phi, Phi and Pi on next step
         for(int ir=0;ir<nR;ir++){
-            phi[ir] += deltaT*(j1[ir]+2.0*(j2[ir]+j3[ir])+j4[ir])/6.0;
-            Phi[ir] += deltaT*(k1[ir]+2.0*(k2[ir]+k3[ir])+k4[ir])/6.0 -ko_c*Phi_ko[ir];
-            Pi[ir]  += deltaT*(l1[ir]+2.0*(l2[ir]+l3[ir])+l4[ir])/6.0 -ko_c* Pi_ko[ir];
+            phi[ir] += _6*deltaT*j_sum[ir];
+            Phi[ir] += _6*deltaT*k_sum[ir] -ko_c*Phi_ko[ir];
+            Pi[ir]  += _6*deltaT*l_sum[ir] -ko_c* Pi_ko[ir];
         }
     }
     if(SAVE_MODE == 0){

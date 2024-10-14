@@ -1,5 +1,6 @@
 import numpy as np
 from numba import njit
+from scipy.integrate import RK45, DOP853
 
 deltaR = 0.001
 deltaT = deltaR/5.0
@@ -143,6 +144,52 @@ def iterate(R,Phi,Pi,Phi_hist,A_hist,iter,min_iter):
 
         Phi = Phi + (k1+2.0*k2+2.0*k3+k4)/6.0
         Pi  = Pi + (l1+2.0*l2+2.0*l3+l4)/6.0
+
+
+@njit
+def iterate_scipy(R,Phi,Pi,Phi_hist,A_hist,iter,min_iter):
+    a = np.ones_like(R)
+    alpha = np.ones_like(R)
+    sizeR = len(R)
+
+    #define vectorized sistem of equations F
+    y = np.array((Phi,Pi))
+    f = np.empty_like(y)
+    def F(t,Y):
+        f[0][0] = (-25.0*alpha[0]*Y[1][0]/a[0] +48.0*alpha[1]*Y[1][1]/a[1] 
+                   -36.0*alpha[2]*Y[1][2]/a[2] +16.0*alpha[3]*Y[1][3]/a[3]
+                    -3.0*alpha[4]*Y[1][4]/a[4])/(12.0*deltaR)
+        f[1][0] = (-25.0*R[0]**2*alpha[0]*Y[0][0]/a[0] +48.0*R[1]**2*alpha[1]*Y[0][1]/a[1]
+                   -36.0*R[2]**2*alpha[2]*Y[0][2]/a[2] +16.0*R[3]**2*alpha[3]*Y[0][3]/a[3]
+                    -3.0*R[4]**2*alpha[4]*Y[0][4]/a[4])/(12.0*deltaR*R[0]**2)
+        f[0][1] = (-3.0*alpha[0]*Y[1][0]/a[0] -10.0*alpha[1]*Y[1][1]/a[1]
+                  +18.0*alpha[2]*Y[1][2]/a[2]  -6.0*alpha[3]*Y[1][3]/a[3]
+                       +alpha[4]*Y[1][4]/a[4])/(12.0*deltaR)
+        f[1][1] = (-3.0*R[0]**2*alpha[0]*Y[0][0]/a[0] -10.0*R[1]**2*alpha[1]*Y[0][1]/a[1]
+                  +18.0*R[2]**2*alpha[2]*Y[0][2]/a[2]  -6.0*R[3]**2*alpha[3]*Y[0][3]/a[3]
+                       +R[4]**2*alpha[4]*Y[0][4]/a[4])/(12.0*deltaR*R[1]**2)
+        f[0][2:-2] = (alpha[ :-4]*Y[1][ :-4]/a[ :-4] -8.0*alpha[1:-3]*Y[1][1:-3]/a[1:-3]
+                 +8.0*alpha[3:-1]*Y[1][3:-1]/a[3:-1]     -alpha[4:  ]*Y[1][4:  ]/a[4:  ])/(12.0*deltaR)
+        f[1][2:-2] = (R[ :-4]**2*alpha[ :-4]*Y[0][ :-4]/a[ :-4] -8.0*R[1:-3]**2*alpha[1:-3]*Y[0][1:-3]/a[1:-3]
+                 +8.0*R[3:-1]**2*alpha[3:-1]*Y[0][3:-1]/a[3:-1]     -R[4:  ]**2*alpha[4:  ]*Y[0][4:  ]/a[4:  ])/(12.0*deltaR*R[2:-2]**2)
+        f[0][-2] = 0
+        f[1][-2] = 0
+        f[0][-1] = 0
+        f[1][-1] = 0
+        
+
+    for i in range(iter):
+
+        # a and alpha with RK4
+        iterate_metric(R,Phi,Pi,a,alpha)
+
+        if(i>=min_iter):
+            Phi_hist[i-min_iter] = Phi
+            A_hist[i-min_iter] = a
+
+        # next Phi and Pi step with RK4
+        RK45(F,0,y)
+        
     
 
 r = initialize_r(deltaR*0.1,maxR = 100)

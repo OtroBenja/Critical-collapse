@@ -13,7 +13,7 @@ void omp_set_num_threads(){return;}
 
 #define MASS 0
 #define METRIC 1 // 0 = minkowski; 1 = choptuik; 2 = modified choptuik
-#define SAVE_MODE 1 // 0 = save uniformly on every SAVE_RES and SAVE_ITERATION ; 1 = save all points after FIRST_ITERATION and with r > MIN_R
+#define SAVE_MODE 0 // 0 = save uniformly on every SAVE_RES and SAVE_ITERATION ; 1 = save all points after FIRST_ITERATION and with r > MIN_R
 #define SAVE_RES 50
 #define SAVE_ITERATION 10
 #define FIRST_ITERATION 77950
@@ -499,8 +499,10 @@ double** iteration2(double* r,double* phi,double* Phi,double* Pi,double deltaR,i
     double *Beta1_2 = malloc(sizeof(double)*nR);
     double *Gamma = malloc(sizeof(double)*nR);
     double *Epsilon = malloc(sizeof(double)*nR);
-    double *Phi_ko = malloc(sizeof(double)*nR);
-    double *Pi_ko = malloc(sizeof(double)*nR);
+    double *Phi_rk = malloc(sizeof(double)*nR);
+    double * Pi_rk = malloc(sizeof(double)*nR);
+    //double *Phi_ko = malloc(sizeof(double)*nR);
+    //double *Pi_ko = malloc(sizeof(double)*nR);
     double ko_c = pow(-1,3)*epsilon/5.;
     double *r2 = malloc(sizeof(double)*nR);
     double m1, n1, m2, n2, m3, n3, m4, n4;
@@ -610,6 +612,7 @@ double** iteration2(double* r,double* phi,double* Phi,double* Pi,double deltaR,i
             }
         }
 
+        /*
         //Calculate Kreiss-Oliger dissipation of 6th order for next step
         Phi_ko[0] = (14.71804060*Phi[0]-99.3467741*Phi[1]+287.0017918*Phi[2]-459.938769*Phi[3]+441.5412182*Phi[4]-253.8862004*Phi[5]+80.9492233*Phi[6]-11.03853045*Phi[7])/3.67951015;
         Pi_ko[ 0] = (14.71804060* Pi[0]-99.3467741* Pi[1]+287.0017918* Pi[2]-459.938769* Pi[3]+441.5412182* Pi[4]-253.8862004* Pi[5]+80.9492233* Pi[6]-11.03853045* Pi[7])/3.67951015;
@@ -639,9 +642,9 @@ double** iteration2(double* r,double* phi,double* Phi,double* Pi,double deltaR,i
         Pi_ko[ nR-2] =  Pi[nR-5]-6.0* Pi[nR-4]+15.0* Pi[nR-3]-20.0* Pi[nR-2]+15.0* Pi[nR-1];
         Phi_ko[nR-1] = Phi[nR-4]-6.0*Phi[nR-3]+15.0*Phi[nR-2]-20.0*Phi[nR-1];
         Pi_ko[ nR-1] =  Pi[nR-4]-6.0* Pi[nR-3]+15.0* Pi[nR-2]-20.0* Pi[nR-1];
+        */
 
         //Advance Pi and Phi using RK4 
-
         for(int ir=0;ir<nR;ir++){
             l_n[ir] = 0.0;
             k_n[ir] = 0.0;
@@ -652,15 +655,16 @@ double** iteration2(double* r,double* phi,double* Phi,double* Pi,double deltaR,i
        //calculate jn, kn and ln
         for(int n=0;n<4;n++){
             for(int ir=0;ir<nR;ir++){
-                Beta[ir] = 2.0*PI*r[ir]*(
-                    ( Pi[ir]+_rk[n]*deltaT*l_n[ir])*( Pi[ir]+_rk[n]*deltaT*l_n[ir]) +
-                    (Phi[ir]+_rk[n]*deltaT*k_n[ir])*(Phi[ir]+_rk[n]*deltaT*k_n[ir]));
+                Phi_rk[ir] = Phi[ir]+_rk[n]*deltaT*k_n[ir];
+                 Pi_rk[ir] =  Pi[ir]+_rk[n]*deltaT*l_n[ir];
+                Beta[ir] = 2.0*PI*r[ir]*((Pi_rk[ir])*(Pi_rk[ir]) + (Phi_rk[ir])*(Phi_rk[ir]));
             }
             for(int ir=0;ir<nR-1;ir++){
                 Beta1_2[ir] = 0.5*PI*(r[ir]+0.5*deltaR)*(
-                    ( Pi[ir]+_rk[n]*deltaT*l_n[ir]+  Pi[ir+1]+_rk[n]*deltaT*l_n[ir+1])*(( Pi[ir]+_rk[n]*deltaT*l_n[ir])+ Pi[ir+1] +_rk[n]*deltaT*l_n[ir+1]) +
-                    (Phi[ir]+_rk[n]*deltaT*k_n[ir]+ Phi[ir+1]+_rk[n]*deltaT*k_n[ir+1])*((Phi[ir]+_rk[n]*deltaT*k_n[ir])+Phi[ir+1] +_rk[n]*deltaT*k_n[ir+1]));
+                    ( Pi_rk[ir] + Pi_rk[ir+1])*( Pi_rk[ir] + Pi_rk[ir+1]) +
+                    (Phi_rk[ir] +Phi_rk[ir+1])*(Phi_rk[ir] +Phi_rk[ir+1]));
             }
+            //First iterate the metric for this Runge-Kutta steo
             for(int ir=0;ir<nR-1;ir++){
                 //calculate m1 and n1
                 m1 = deltaR*    a[ir]*(Beta[ir]-0.5*(a[ir]*a[ir]-1)/r[ir]);
@@ -679,22 +683,23 @@ double** iteration2(double* r,double* phi,double* Phi,double* Pi,double deltaR,i
                 alpha[ir+1] = alpha[ir] +(n1 +2.0*(n2+n3) +n4)/6.0;
             }
             for(int ir=0;ir<nR;ir++){
-                Gamma[ir]   =        alpha[ir]*( Pi[ir]+_rk[n]*deltaT*l_n[ir])/a[ir];
-                Epsilon[ir] = r2[ir]*alpha[ir]*(Phi[ir]+_rk[n]*deltaT*k_n[ir])/a[ir];
+                Gamma[ir]   =        alpha[ir]*( Pi_rk[ir])/a[ir];
+                Epsilon[ir] = r2[ir]*alpha[ir]*(Phi_rk[ir])/a[ir];
             }
             for(int ir=0;ir<5;ir++)
-                Chi[ir] = alpha[ir]*(Phi[ir]+_rk[n]*deltaT*k_n[ir])/a[ir];
+                Chi[ir] = alpha[ir]*(Phi_rk[ir])/a[ir];
 
             j_n[0] = Gamma[0];
-            //k_n[0] = leftmost_D1(Gamma,0,deltaR);
-            //l_n[0] = leftmost_D1(Epsilon,0,deltaR)/r2[0];
+            
+            
             k_n[0] = 0;
-            l_n[0] = centered_r0_odd_D1(Chi,deltaR); //Chi is odd because Phi is odd
+            l_n[0] = leftmost_D1(Chi,0,deltaR); //Chi is odd because Phi is odd
+            //l_n[0] = centered_r0_odd_D1(Chi,deltaR); //Chi is odd because Phi is odd
             j_n[1] = Gamma[1];
-            //k_n[1] = leftmid_D1(Gamma,1,deltaR);
-            //l_n[1] = leftmid_D1(Epsilon,1,deltaR)/r2[1];
-            k_n[1] = centered_r1_even_D1(Gamma,deltaR); //Gamma is even because Pi es even
-            l_n[1] = centered_r1_odd_D1(Epsilon,deltaR)/r2[1]; //Epsilon is odd because Phi is odd
+            k_n[1] = leftmid_D1(Gamma,1,deltaR);
+            l_n[1] = leftmid_D1(Epsilon,1,deltaR)/r2[1];
+            //k_n[1] = centered_r1_even_D1(Gamma,deltaR); //Gamma is even because Pi es even
+            //l_n[1] = centered_r1_odd_D1(Epsilon,deltaR)/r2[1]; //Epsilon is odd because Phi is odd
             //#pragma omp parallel for
             for(int ir=2;ir<nR-2;ir++){
                 j_n[ir] = Gamma[ir];
@@ -719,8 +724,8 @@ double** iteration2(double* r,double* phi,double* Phi,double* Pi,double deltaR,i
         //Calculate phi, Phi and Pi on next step
         for(int ir=0;ir<nR;ir++){
             phi[ir] += _6*deltaT*j_sum[ir];
-            Phi[ir] += _6*deltaT*k_sum[ir] -ko_c*Phi_ko[ir];
-            Pi[ir]  += _6*deltaT*l_sum[ir] -ko_c* Pi_ko[ir];
+            Phi[ir] += _6*deltaT*k_sum[ir];//-ko_c*Phi_ko[ir];
+            Pi[ir]  += _6*deltaT*l_sum[ir];//-ko_c* Pi_ko[ir];
         }
     }
     if(SAVE_MODE == 0){

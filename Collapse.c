@@ -14,11 +14,11 @@ void omp_set_num_threads(){return;}
 #define MASS 0
 #define METRIC 1 // 0 = minkowski; 1 = choptuik; 2 = modified choptuik
 #define SAVE_MODE 1 // 0 = save uniformly on every SAVE_RES and SAVE_ITERATION ; 1 = save all points after FIRST_ITERATION and with r > MIN_R
-#define SAVE_RES 200
-#define SAVE_ITERATION 100
+#define SAVE_RES 50
+#define SAVE_ITERATION 10
 #define FIRST_ITERATION 77950
 #define MIN_R 50
-#define ITERATIONS 78100
+#define ITERATIONS 78500
 #define EPSILON 0.0 // Default Kreiss-Oliger dampening
 #define PI 3.141592653
 #define E  2.718281828
@@ -39,13 +39,18 @@ double rightmid_D1(double *f,int idx,double deltaR){
 double rightmost_D1(double *f,int idx,double deltaR){
     return (3.0*f[idx-4] -16.0*f[idx-3] +36.0*f[idx-2] -48.0*f[idx-1] +25.0*f[idx])/(12.0*deltaR);
 }
-double centered_r0_D1(double *f,double deltaR){
-    return (-f[2] +8.0*f[1] +8.0*f[1] -f[2])/(12.0*deltaR);
+double centered_r0_odd_D1(double *f,double deltaR){
+    return (16.0*f[1] -2.0*f[2])/(12.0*deltaR);
 }
-double centered_r1_D1(double *f,double deltaR){
+double centered_r0_even_D1(double *f,double deltaR){
+    return 0.0;
+}
+double centered_r1_odd_D1(double *f,double deltaR){
     return (-f[1] -8.0*f[0] +8.0*f[2] -f[3])/(12.0*deltaR);
 }
-
+double centered_r1_even_D1(double *f,double deltaR){
+    return ( f[1] -8.0*f[0] +8.0*f[2] -f[3])/(12.0*deltaR);
+}
 
 double** initialize_field(int fType,double* model_parameters,double deltaR,int maxR){
     double p0 = model_parameters[0];
@@ -59,7 +64,7 @@ double** initialize_field(int fType,double* model_parameters,double deltaR,int m
     double** return_values = malloc(sizeof(double*)*4);
 
     //Define r and calculate initial phi
-    r[0] = 1.0E-50;
+    r[0] = deltaR*0.1;
     for(int i=1;i<nR;i++)
         r[i] = i*deltaR;
     if(fType==0){
@@ -103,75 +108,26 @@ double** initialize_field(int fType,double* model_parameters,double deltaR,int m
     return return_values;
 }
 
-//This function is not currently in use
-void metric_iteration(double* Beta, double* Beta1_2, double* a, double* alpha, double* r, double* r2,
-    double* Gamma, double* Epsilon, double* Zeta, int nR, double deltaR, int method, int metric){
+void metric_iteration1(double* Beta, double* Beta1_2, double* a, double* alpha, double* r, int nR, double deltaR){
     
-    // metric = 1 means choptuik metric
-    if(metric == 1){
-        // method = 0 means iterate RK4
-        if(method == 0){
-            int m1, n1, m2, n2, m3, n3, m4, n4;
-            for(int ir=0;ir<nR-1;ir++){
-                //calculate m1 and n1
-                m1 =     a[ir]*(Beta[ir]-0.5*(a[ir]*a[ir]-1)/r[ir]);
-                n1 = alpha[ir]*(Beta[ir]+0.5*(a[ir]*a[ir]-1)/r[ir]);
-                //calculate m2 and n2
-                m2 =     (a[ir]+0.5*deltaR*m1)*(Beta1_2[ir]-0.5*((a[ir]+0.5*deltaR*m1)*(a[ir]+0.5*deltaR*m1)-1)/(r[ir]+0.5*deltaR));
-                n2 = (alpha[ir]+0.5*deltaR*n1)*(Beta1_2[ir]+0.5*((a[ir]+0.5*deltaR*m1)*(a[ir]+0.5*deltaR*m1)-1)/(r[ir]+0.5*deltaR));
-                //calculate m3 and n3
-                m3 =     (a[ir]+0.5*deltaR*m2)*(Beta1_2[ir]-0.5*((a[ir]+0.5*deltaR*m2)*(a[ir]+0.5*deltaR*m2)-1)/(r[ir]+0.5*deltaR));
-                n3 = (alpha[ir]+0.5*deltaR*n2)*(Beta1_2[ir]+0.5*((a[ir]+0.5*deltaR*m2)*(a[ir]+0.5*deltaR*m2)-1)/(r[ir]+0.5*deltaR));
-                //calculate m4 and n4
-                m4 =     (a[ir]+deltaR*m3)*(Beta[ir+1]-0.5*((a[ir]+deltaR*m3)*(a[ir]+deltaR*m3)-1)/r[ir+1]);
-                n4 = (alpha[ir]+deltaR*n3)*(Beta[ir+1]+0.5*((a[ir]+deltaR*m3)*(a[ir]+deltaR*m3)-1)/r[ir+1]);
-                //Calculate next step for a and alpha
-                a[ir+1]     = a[ir]     + deltaR*(m1 +2.0*(m2+m3) +m4)/6.0;
-                alpha[ir+1] = alpha[ir] + deltaR*(n1 +2.0*(n2+n3) +n4)/6.0;
-            }
-            #pragma omp parallel for
-            for(int ir=0;ir<nR;ir++){
-                Gamma[ir] = alpha[ir]/a[ir];
-                Epsilon[ir] = r2[ir]*Gamma[ir];
-                Zeta[ir] = r[ir]/(a[ir]*a[ir]);
-            }
-        }
+    int m1, n1, m2, n2, m3, n3, m4, n4;
+    for(int ir=0;ir<nR-1;ir++){
+        //calculate m1 and n1
+        m1 = deltaR*    a[ir]*(Beta[ir]-0.5*(a[ir]*a[ir]-1)/r[ir]);
+        n1 = deltaR*alpha[ir]*(Beta[ir]+0.5*(a[ir]*a[ir]-1)/r[ir]);
+        //calculate m2 and n2
+        m2 = deltaR*    (a[ir]+0.5*m1)*(Beta1_2[ir]-0.5*((a[ir]+0.5*m1)*(a[ir]+0.5*m1)-1)/(r[ir]+0.5*deltaR));
+        n2 = deltaR*(alpha[ir]+0.5*n1)*(Beta1_2[ir]+0.5*((a[ir]+0.5*m1)*(a[ir]+0.5*m1)-1)/(r[ir]+0.5*deltaR));
+        //calculate m3 and n3
+        m3 = deltaR*    (a[ir]+0.5*m2)*(Beta1_2[ir]-0.5*((a[ir]+0.5*m2)*(a[ir]+0.5*m2)-1)/(r[ir]+0.5*deltaR));
+        n3 = deltaR*(alpha[ir]+0.5*n2)*(Beta1_2[ir]+0.5*((a[ir]+0.5*m2)*(a[ir]+0.5*m2)-1)/(r[ir]+0.5*deltaR));
+        //calculate m4 and n4
+        m4 = deltaR*    (a[ir]+m3)*(Beta[ir+1]-0.5*((a[ir]+m3)*(a[ir]+m3)-1)/r[ir+1]);
+        n4 = deltaR*(alpha[ir]+n3)*(Beta[ir+1]+0.5*((a[ir]+m3)*(a[ir]+m3)-1)/r[ir+1]);
+        //Calculate next step for a and alpha
+        a[ir+1]     = a[ir]     +(m1 +2.0*(m2+m3) +m4)/6.0;
+        alpha[ir+1] = alpha[ir] +(n1 +2.0*(n2+n3) +n4)/6.0;
     }
-    // metric = 2 means modified choptuik metric
-    else if(metric == 2){
-        if(method == 0){
-            int m1, n1, m2, n2, m3, n3, m4, n4, temp;
-            for(int ir=0;ir<nR-1;ir++){
-                //calculate m1 and n1
-                temp = a[ir]*a[ir];
-                m1 =     -a[ir]*(Beta[ir]-0.5*(1-temp)/(r[ir]*temp));
-                n1 = -alpha[ir]*(Beta[ir]+0.5*(1-temp)/(r[ir]*temp));
-                //calculate m2 and n2
-                temp = (a[ir]+0.5*deltaR*m1)*(a[ir]+0.5*deltaR*m1);
-                m2 =     -(a[ir]+0.5*deltaR*m1)*(Beta1_2[ir]-0.5*(1-temp)/((r[ir]+0.5*deltaR)*temp));
-                n2 = -(alpha[ir]+0.5*deltaR*n1)*(Beta1_2[ir]+0.5*(1-temp)/((r[ir]+0.5*deltaR)*temp));
-                //calculate m3 and n3
-                temp = (a[ir]+0.5*deltaR*m2)*(a[ir]+0.5*deltaR*m2);
-                m3 =     -(a[ir]+0.5*deltaR*m2)*(Beta1_2[ir]-0.5*(1-temp)/((r[ir]+0.5*deltaR)*temp));
-                n3 = -(alpha[ir]+0.5*deltaR*n2)*(Beta1_2[ir]+0.5*(1-temp)/((r[ir]+0.5*deltaR)*temp));
-                //calculate m4 and n4
-                temp = (a[ir]+deltaR*m3)*(a[ir]+deltaR*m3);
-                m4 =     -(a[ir]+deltaR*m3)*(Beta[ir+1]-0.5*(1-temp)/(r[ir+1]*temp));
-                n4 = -(alpha[ir]+deltaR*n3)*(Beta[ir+1]+0.5*(1-temp)/(r[ir+1]*temp));
-                //Calculate next step for a and alpha
-                a[ir+1]     = a[ir]     + deltaR*(m1 +2.0*(m2+m3) +m4)/6.0;
-                alpha[ir+1] = alpha[ir] + deltaR*(n1 +2.0*(n2+n3) +n4)/6.0;
-            }
-            //Define auxiliar variables
-            #pragma omp parallel for
-            for(int ir=0;ir<nR;ir++){
-                Gamma[ir] = a[ir]/alpha[ir];
-                Epsilon[ir] = r2[ir]*Gamma[ir];
-                Zeta[ir] = r[ir]*a[ir]*a[ir];
-            }
-        }
-    }
-
 }
 
 double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,int maxR,int iterations,int save_iteration,double epsilon){
@@ -188,14 +144,12 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
     double *Gamma = malloc(sizeof(double)*nR);
     double *Epsilon = malloc(sizeof(double)*nR);
     double *Zeta = malloc(sizeof(double)*nR);
-    double *Chi = malloc(sizeof(double)*5);
     double *Phi_ko = malloc(sizeof(double)*nR);
     double *Pi_ko = malloc(sizeof(double)*nR);
     double ko_c = pow(-1,3)*epsilon/5.;
     double *r2 = malloc(sizeof(double)*nR);
-    double *j_minus1 = malloc(sizeof(double)*nR);
-    double *k_minus1 = malloc(sizeof(double)*nR);
-    double *l_minus1 = malloc(sizeof(double)*nR);
+
+    double *Chi = malloc(sizeof(double)*5);
     double *j_n = malloc(sizeof(double)*nR);
     double *k_n = malloc(sizeof(double)*nR);
     double *l_n = malloc(sizeof(double)*nR);
@@ -204,6 +158,7 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
     double *l_sum = malloc(sizeof(double)*nR);
     double  rk[4] = {1.0,2.0,2.0,1.0};
     double _rk[4] = {1.0,0.5,0.5,1.0};
+
     double m1, n1, m2, n2, m3, n3, m4, n4;
     double *m, *n;
     if(METRIC==5){
@@ -250,16 +205,18 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         Epsilon[ir] = r2[ir]*Gamma[ir];
         Zeta[ir] = r[ir]/(a[ir]*a[ir]);
     }
-    
+
     for(int i=0;i<iterations;i++){
         //printf("Iteration %d\n",i);
         //If on minkowski metric, do not solve a and alpha
 
         //Useful auxiliar variable
+        //#pragma omp parallel for
         for(int ir=0;ir<nR;ir++)
             Beta[ir] = 2.0*PI*r[ir]*(Pi[ir]*Pi[ir]+Phi[ir]*Phi[ir]);
         //If on choptuik metric, solve a and alpha with known values of PHI and PI using RK4
         if(METRIC == 1){
+            //#pragma omp parallel for
             for(int ir=0;ir<nR-1;ir++){
                 Beta1_2[ir] = 0.5*PI*(r[ir]+0.5*deltaR)*((Pi[ir]+Pi[ir+1])*(Pi[ir]+Pi[ir+1])+(Phi[ir]+Phi[ir+1])*(Phi[ir]+Phi[ir+1]));
                 //Beta1_2[ir] = 2.0*PI*(r[ir]+deltaR/2)*(Pi[ir]*Pi[ir]+Phi[ir]*Phi[ir]);
@@ -283,12 +240,16 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
                 alpha[ir+1] = alpha[ir] +(n1 +2.0*(n2+n3) +n4)/6.0;
             }
             //Define auxiliar variables
+            //#pragma omp parallel for
             for(int ir=0;ir<nR;ir++){
+                Gamma[ir] = alpha[ir]/a[ir];
+                Epsilon[ir] = r2[ir]*Gamma[ir];
                 Zeta[ir] = r[ir]/(a[ir]*a[ir]);
             }
         }
         //If on modified choptuik metric, solve s and sigma with known values of PHI and PI using RK4
         if(METRIC == 2){
+            #pragma omp parallel for
             for(int ir=0;ir<nR-1;ir++){
                 Beta1_2[ir] = 0.5*PI*(r[ir]+0.5*deltaR)*((Pi[ir]+Pi[ir+1])*(Pi[ir]+Pi[ir+1])+(Phi[ir]+Phi[ir+1])*(Phi[ir]+Phi[ir+1]));
                 //Beta1_2[ir] = 2.0*PI*(r[ir]+deltaR/2)*(Pi[ir]*Pi[ir]+Phi[ir]*Phi[ir]);
@@ -316,7 +277,10 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
                 alpha[ir+1] = alpha[ir] + deltaR*(n1 +2.0*(n2+n3) +n4)/6.0;
             }
             //Define auxiliar variables
+            #pragma omp parallel for
             for(int ir=0;ir<nR;ir++){
+                Gamma[ir] = a[ir]/alpha[ir];
+                Epsilon[ir] = r2[ir]*Gamma[ir];
                 Zeta[ir] = r[ir]*a[ir]*a[ir];
             }
         }
@@ -329,12 +293,16 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
                 alpha[ir+1] = alpha[ir] + deltaR*alpha[ir]*(Beta[ir]+0.5*(a[ir]*a[ir]-1)/r[ir]);
             }
             //Define auxiliar variables
+            #pragma omp parallel for
             for(int ir=0;ir<nR;ir++){
+                Gamma[ir] = alpha[ir]/a[ir];
+                Epsilon[ir] = r2[ir]*Gamma[ir];
                 Zeta[ir] = r[ir]/(a[ir]*a[ir]);
             }
         }
         //If on choptuik metric, solve a and alpha with known values of PHI and PI using RK4
         if(METRIC == 4){
+            //#pragma omp parallel for
             for(int ir=0;ir<nR-1;ir++){
                 Beta[ir] = 2.0*PI*(Pi[ir]*Pi[ir]+Phi[ir]*Phi[ir]);
                 //Beta1_2[ir] = 2.0*PI*(r[ir]+deltaR/2)*(Pi[ir]*Pi[ir]+Phi[ir]*Phi[ir]);
@@ -358,7 +326,10 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
                 alpha[ir+1] = alpha[ir] +(n1 +2.0*(n2+n3) +n4)/6.0;
             }
             //Define auxiliar variables
+            //#pragma omp parallel for
             for(int ir=0;ir<nR;ir++){
+                Gamma[ir] = alpha[ir]/a[ir];
+                Epsilon[ir] = r2[ir]*Gamma[ir];
                 Zeta[ir] = r[ir]/(a[ir]*a[ir]);
             }
         }
@@ -440,7 +411,7 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         Phi_ko[nR-1] = Phi[nR-4]-6.0*Phi[nR-3]+15.0*Phi[nR-2]-20.0*Phi[nR-1];
         Pi_ko[ nR-1] =  Pi[nR-4]-6.0* Pi[nR-3]+15.0* Pi[nR-2]-20.0* Pi[nR-1];
 
-        //Advance phi, Phi and Pi using RK4 
+        //Advance Pi and Phi using RK4 
 
         for(int ir=0;ir<nR;ir++){
             l_n[ir] = 0.0;
@@ -449,7 +420,8 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
             k_sum[ir] = 0.0;
             l_sum[ir] = 0.0;
         }
-        //calculate jn, kn and ln
+
+       //calculate jn, kn and ln
         for(int n=0;n<4;n++){
             for(int ir=0;ir<nR;ir++){
                 Gamma[ir]   =        alpha[ir]*( Pi[ir]+_rk[n]*deltaT*l_n[ir])/a[ir];
@@ -462,12 +434,267 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
             //k_n[0] = leftmost_D1(Gamma,0,deltaR);
             //l_n[0] = leftmost_D1(Epsilon,0,deltaR)/r2[0];
             k_n[0] = 0;
-            l_n[0] = centered_r0_D1(Chi,deltaR);
+            l_n[0] = centered_r0_odd_D1(Chi,deltaR); //Chi is odd because Phi is odd
             j_n[1] = Gamma[1];
             //k_n[1] = leftmid_D1(Gamma,1,deltaR);
             //l_n[1] = leftmid_D1(Epsilon,1,deltaR)/r2[1];
-            k_n[1] = centered_r1_D1(Gamma,deltaR);
-            l_n[1] = centered_r1_D1(Epsilon,deltaR)/r2[1];
+            k_n[1] = centered_r1_even_D1(Gamma,deltaR); //Gamma is even because Pi es even
+            l_n[1] = centered_r1_odd_D1(Epsilon,deltaR)/r2[1]; //Epsilon is odd because Phi is odd
+            //#pragma omp parallel for
+            for(int ir=2;ir<nR-2;ir++){
+                j_n[ir] = Gamma[ir];
+                k_n[ir] = centered_D1(Gamma,ir,deltaR);
+                l_n[ir] = centered_D1(Epsilon,ir,deltaR)/r2[ir];
+            }
+            j_n[nR-2] = Gamma[nR-2];
+            k_n[nR-2] = 0;
+            l_n[nR-2] = 0;
+            j_n[nR-1] = Gamma[nR-1];
+            k_n[nR-1] = 0;
+            l_n[nR-1] = 0;
+
+            //Calculate phi, Phi and Pi on next step
+            for(int ir=0;ir<nR;ir++){
+                j_sum[ir] += rk[n]*j_n[ir];
+                k_sum[ir] += rk[n]*k_n[ir];
+                l_sum[ir] += rk[n]*l_n[ir];
+            }
+        }
+
+        //Calculate phi, Phi and Pi on next step
+        for(int ir=0;ir<nR;ir++){
+            phi[ir] += _6*deltaT*j_sum[ir];
+            Phi[ir] += _6*deltaT*k_sum[ir] -ko_c*Phi_ko[ir];
+            Pi[ir]  += _6*deltaT*l_sum[ir] -ko_c* Pi_ko[ir];
+        }
+    }
+    if(SAVE_MODE == 0){
+        for(int ir=0;ir<(nR/SAVE_RES);ir++)
+            Rhistory[ir] = r[ir*SAVE_RES];
+    }
+    else if(SAVE_MODE == 1){
+        for(int ir=0;ir<(saveNR);ir++)
+            Rhistory[ir] = r[noSaveNR+ir];
+    }
+    hist[0] = Rhistory;
+    hist[1] = Fhistory;
+    hist[2] = Xhistory;
+    hist[3] = Yhistory;
+    hist[4] = Ahistory;
+    hist[5] = Bhistory;
+    hist[6] = Mhistory;
+    return hist;
+}
+
+double** iteration2(double* r,double* phi,double* Phi,double* Pi,double deltaR,int maxR,int iterations,int save_iteration,double epsilon){
+
+    int nR = maxR/deltaR;
+    int noSaveNR = MIN_R/deltaR;
+    int saveNR = (maxR-MIN_R)/deltaR;
+    double deltaT = deltaR/5.;
+    double mass;
+    double *a = malloc(sizeof(double)*nR);
+    double *alpha = malloc(sizeof(double)*nR);
+    double *Beta = malloc(sizeof(double)*nR);
+    double *Beta1_2 = malloc(sizeof(double)*nR);
+    double *Gamma = malloc(sizeof(double)*nR);
+    double *Epsilon = malloc(sizeof(double)*nR);
+    double *Phi_ko = malloc(sizeof(double)*nR);
+    double *Pi_ko = malloc(sizeof(double)*nR);
+    double ko_c = pow(-1,3)*epsilon/5.;
+    double *r2 = malloc(sizeof(double)*nR);
+    double m1, n1, m2, n2, m3, n3, m4, n4;
+
+    double *Chi = malloc(sizeof(double)*5);
+    double *j_n = malloc(sizeof(double)*nR);
+    double *k_n = malloc(sizeof(double)*nR);
+    double *l_n = malloc(sizeof(double)*nR);
+    double *j_sum = malloc(sizeof(double)*nR);
+    double *k_sum = malloc(sizeof(double)*nR);
+    double *l_sum = malloc(sizeof(double)*nR);
+    double  rk[4] = {1.0,2.0,2.0,1.0};
+    double _rk[4] = {1.0,0.5,0.5,1.0};
+
+    double temp;
+    double *temp_pointer;
+    double *Rhistory, *Fhistory, *Xhistory, *Yhistory, *Ahistory, *Bhistory, *Mhistory;
+    if(SAVE_MODE == 0){
+        Rhistory = malloc(sizeof(double)*(nR/SAVE_RES));
+        Fhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
+        Xhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
+        Yhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
+        Ahistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
+        Bhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
+        Mhistory = malloc(sizeof(double)*(iterations/save_iteration));
+    }
+    else if(SAVE_MODE == 1){
+        Rhistory = malloc(sizeof(double)*saveNR);
+        Fhistory = malloc(sizeof(double)*saveNR*(iterations-FIRST_ITERATION));
+        Xhistory = malloc(sizeof(double)*saveNR*(iterations-FIRST_ITERATION));
+        Yhistory = malloc(sizeof(double)*saveNR*(iterations-FIRST_ITERATION));
+        Ahistory = malloc(sizeof(double)*saveNR*(iterations-FIRST_ITERATION));
+        Bhistory = malloc(sizeof(double)*saveNR*(iterations-FIRST_ITERATION));
+        Mhistory = malloc(sizeof(double)*(iterations-FIRST_ITERATION));
+    }
+    double** hist = malloc(sizeof(double*)*7);
+    int save_count = save_iteration;
+
+    for(int ir=0;ir<nR;ir++){
+        a[ir] = 1.;
+        alpha[ir] = 1.;
+    }
+    if(METRIC == 0){
+        for(int i=1;i<nR;i++){
+            //a[i] = 1.0 + 0.0001*pow(r[i],3)*pow(E,-pow((r[i]-10.0)/10,2));
+            //alpha[i] = pow(E,r[i]/100);
+        }
+    }
+    for(int ir=0;ir<nR;ir++){
+        Gamma[ir] = alpha[ir]/a[ir];
+        r2[ir] = r[ir]*r[ir];
+        Epsilon[ir] = r2[ir]*Gamma[ir];
+    }
+
+    for(int i=0;i<iterations;i++){
+        
+        //for(int ir=0;ir<nR;ir++)
+        //    Beta[ir] = 2.0*PI*r[ir]*(Pi[ir]*Pi[ir]+Phi[ir]*Phi[ir]);
+        //for(int ir=0;ir<nR-1;ir++)
+        //    Beta1_2[ir] = 0.5*PI*(r[ir]+0.5*deltaR)*((Pi[ir]+Pi[ir+1])*(Pi[ir]+Pi[ir+1])+(Phi[ir]+Phi[ir+1])*(Phi[ir]+Phi[ir+1]));
+        //metric_iteration1(Beta,Beta1_2,a,alpha,r,nR,deltaR);
+
+        if(SAVE_MODE == 0){
+            //Save values of Phi, Pi, phi, a and alpha
+            if(save_count == save_iteration){
+                //printf("iteration %d\n",i);
+                if(MASS){
+                    mass = 0;
+                    for(int ir=0;ir<nR;ir++){
+                        mass += Beta[ir]*r[ir]/(a[ir]*a[ir])*deltaR;
+                    }
+                    Mhistory[i/save_iteration] = mass;
+                }
+                for(int ir=0;ir<(nR/SAVE_RES);ir++){
+                    //Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]*Phi[ir*SAVE_RES]*sqrt(2*PI)/a[ir*SAVE_RES];
+                    //Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]* Pi[ir*SAVE_RES]*sqrt(2*PI)/a[ir*SAVE_RES];
+                    Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =   Phi[ir*SAVE_RES];
+                    Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =    Pi[ir*SAVE_RES];
+                    Fhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =   phi[ir*SAVE_RES];
+                    Ahistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =     a[ir*SAVE_RES];
+                    Bhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = alpha[ir*SAVE_RES];
+                }
+                save_count=0;
+            }
+            save_count+=1;
+        }
+
+        if(SAVE_MODE == 1){
+            //Save values of Phi, Pi, phi, a and alpha
+            if(i >= FIRST_ITERATION){
+                int save_iter = i - FIRST_ITERATION;
+                //printf("iteration %d\n",i);
+                if(MASS){
+                    mass = 0;
+                    for(int ir=0;ir<nR;ir++){
+                        mass += Beta[ir]*r[ir]/(a[ir]*a[ir])*deltaR;
+                    }
+                    Mhistory[save_iter] = mass;
+                }
+                for(int ir=0;ir<saveNR;ir++){
+                    Xhistory[save_iter*saveNR + ir] =   Phi[noSaveNR + ir];
+                    Yhistory[save_iter*saveNR + ir] =    Pi[noSaveNR + ir];
+                    Fhistory[save_iter*saveNR + ir] =   phi[noSaveNR + ir];
+                    Ahistory[save_iter*saveNR + ir] =     a[noSaveNR + ir];
+                    Bhistory[save_iter*saveNR + ir] = alpha[noSaveNR + ir];
+                }
+            }
+        }
+
+        //Calculate Kreiss-Oliger dissipation of 6th order for next step
+        Phi_ko[0] = (14.71804060*Phi[0]-99.3467741*Phi[1]+287.0017918*Phi[2]-459.938769*Phi[3]+441.5412182*Phi[4]-253.8862004*Phi[5]+80.9492233*Phi[6]-11.03853045*Phi[7])/3.67951015;
+        Pi_ko[ 0] = (14.71804060* Pi[0]-99.3467741* Pi[1]+287.0017918* Pi[2]-459.938769* Pi[3]+441.5412182* Pi[4]-253.8862004* Pi[5]+80.9492233* Pi[6]-11.03853045* Pi[7])/3.67951015;
+        Phi_ko[1] = 3*Phi[0]-20*Phi[1]+57*Phi[2]-90*Phi[3]+85*Phi[4]-48*Phi[5]+15*Phi[6]-2*Phi[7];
+        Pi_ko[ 1] = 3* Pi[0]-20* Pi[1]+57* Pi[2]-90* Pi[3]+85* Pi[4]-48* Pi[5]+15* Pi[6]-2* Pi[7];
+        Phi_ko[2] = 2*Phi[0]-13*Phi[1]+36*Phi[2]-55*Phi[3]+50*Phi[4]-27*Phi[5]+8*Phi[6]-1*Phi[7];
+        Pi_ko[ 2] = 2* Pi[0]-13* Pi[1]+36* Pi[2]-55* Pi[3]+50* Pi[4]-27* Pi[5]+8* Pi[6]-1* Pi[7];
+        //Phi_ko[0] = Phi[0]-6.0*Phi[1]+15.0*Phi[2]-20.0*Phi[3]+15.0*Phi[4]-6.0*Phi[5]+Phi[6];
+        //Pi_ko[ 0] =  Pi[0]-6.0* Pi[1]+15.0* Pi[2]-20.0* Pi[3]+15.0* Pi[4]-6.0* Pi[5]+ Pi[6];
+        //Phi_ko[1] = Phi[0]-6.0*Phi[1]+15.0*Phi[2]-20.0*Phi[3]+15.0*Phi[4]-6.0*Phi[5]+Phi[6];
+        //Pi_ko[ 1] =  Pi[0]-6.0* Pi[1]+15.0* Pi[2]-20.0* Pi[3]+15.0* Pi[4]-6.0* Pi[5]+ Pi[6];
+        //Phi_ko[2] = Phi[0]-6.0*Phi[1]+15.0*Phi[2]-20.0*Phi[3]+15.0*Phi[4]-6.0*Phi[5]+Phi[6];
+        //Pi_ko[ 2] =  Pi[0]-6.0* Pi[1]+15.0* Pi[2]-20.0* Pi[3]+15.0* Pi[4]-6.0* Pi[5]+ Pi[6];
+        //Phi_ko[0] = -20.0*Phi[0]+30.0*Phi[1]-12.0*Phi[2] +2.0*Phi[3];
+        //Pi_ko[ 0] = -20.0* Pi[0]+30.0* Pi[1]-12.0* Pi[2] +2.0* Pi[3];
+        //Phi_ko[1] =  15.0*Phi[0]-26.0*Phi[1]+16.0*Phi[2] -6.0*Phi[3]    +Phi[4];
+        //Pi_ko[ 1] =  15.0* Pi[0]-26.0* Pi[1]+16.0* Pi[2] -6.0* Pi[3]    + Pi[4];
+        //Phi_ko[2] =  -6.0*Phi[0]+16.0*Phi[1]-20.0*Phi[2]+15.0*Phi[3]-6.0*Phi[4]+Phi[5];
+        //Pi_ko[ 2] =  -6.0* Pi[0]+16.0* Pi[1]-20.0* Pi[2]+15.0* Pi[3]-6.0* Pi[4]+ Pi[5];
+        for(int ir=3;ir<nR-3;ir++){
+            Phi_ko[ir] = Phi[ir-3]-6.0*Phi[ir-2]+15.0*Phi[ir-1]-20.0*Phi[ir]+15.0*Phi[ir+1]-6.0*Phi[ir+2]+Phi[ir+3];
+            Pi_ko[ir]  =  Pi[ir-3]-6.0* Pi[ir-2]+15.0* Pi[ir-1]-20.0* Pi[ir]+15.0* Pi[ir+1]-6.0* Pi[ir+2]+ Pi[ir+3];
+        }
+        Phi_ko[nR-3] = Phi[nR-6]-6.0*Phi[nR-5]+15.0*Phi[nR-4]-20.0*Phi[nR-3]+15.0*Phi[nR-2]-6.0*Phi[nR-1];
+        Pi_ko[ nR-3] =  Pi[nR-6]-6.0* Pi[nR-5]+15.0* Pi[nR-4]-20.0* Pi[nR-3]+15.0* Pi[nR-2]-6.0* Pi[nR-1];
+        Phi_ko[nR-2] = Phi[nR-5]-6.0*Phi[nR-4]+15.0*Phi[nR-3]-20.0*Phi[nR-2]+15.0*Phi[nR-1];
+        Pi_ko[ nR-2] =  Pi[nR-5]-6.0* Pi[nR-4]+15.0* Pi[nR-3]-20.0* Pi[nR-2]+15.0* Pi[nR-1];
+        Phi_ko[nR-1] = Phi[nR-4]-6.0*Phi[nR-3]+15.0*Phi[nR-2]-20.0*Phi[nR-1];
+        Pi_ko[ nR-1] =  Pi[nR-4]-6.0* Pi[nR-3]+15.0* Pi[nR-2]-20.0* Pi[nR-1];
+
+        //Advance Pi and Phi using RK4 
+
+        for(int ir=0;ir<nR;ir++){
+            l_n[ir] = 0.0;
+            k_n[ir] = 0.0;
+            j_sum[ir] = 0.0;
+            k_sum[ir] = 0.0;
+            l_sum[ir] = 0.0;
+        }
+       //calculate jn, kn and ln
+        for(int n=0;n<4;n++){
+            for(int ir=0;ir<nR;ir++){
+                Beta[ir] = 2.0*PI*r[ir]*(
+                    ( Pi[ir]+_rk[n]*deltaT*l_n[ir])*( Pi[ir]+_rk[n]*deltaT*l_n[ir]) +
+                    (Phi[ir]+_rk[n]*deltaT*k_n[ir])*(Phi[ir]+_rk[n]*deltaT*k_n[ir]));
+            }
+            for(int ir=0;ir<nR-1;ir++){
+                Beta1_2[ir] = 0.5*PI*(r[ir]+0.5*deltaR)*(
+                    ( Pi[ir]+_rk[n]*deltaT*l_n[ir]+  Pi[ir+1]+_rk[n]*deltaT*l_n[ir+1])*(( Pi[ir]+_rk[n]*deltaT*l_n[ir])+ Pi[ir+1] +_rk[n]*deltaT*l_n[ir+1]) +
+                    (Phi[ir]+_rk[n]*deltaT*k_n[ir]+ Phi[ir+1]+_rk[n]*deltaT*k_n[ir+1])*((Phi[ir]+_rk[n]*deltaT*k_n[ir])+Phi[ir+1] +_rk[n]*deltaT*k_n[ir+1]));
+            }
+            for(int ir=0;ir<nR-1;ir++){
+                //calculate m1 and n1
+                m1 = deltaR*    a[ir]*(Beta[ir]-0.5*(a[ir]*a[ir]-1)/r[ir]);
+                n1 = deltaR*alpha[ir]*(Beta[ir]+0.5*(a[ir]*a[ir]-1)/r[ir]);
+                //calculate m2 and n2
+                m2 = deltaR*    (a[ir]+0.5*m1)*(Beta1_2[ir]-0.5*((a[ir]+0.5*m1)*(a[ir]+0.5*m1)-1)/(r[ir]+0.5*deltaR));
+                n2 = deltaR*(alpha[ir]+0.5*n1)*(Beta1_2[ir]+0.5*((a[ir]+0.5*m1)*(a[ir]+0.5*m1)-1)/(r[ir]+0.5*deltaR));
+                //calculate m3 and n3
+                m3 = deltaR*    (a[ir]+0.5*m2)*(Beta1_2[ir]-0.5*((a[ir]+0.5*m2)*(a[ir]+0.5*m2)-1)/(r[ir]+0.5*deltaR));
+                n3 = deltaR*(alpha[ir]+0.5*n2)*(Beta1_2[ir]+0.5*((a[ir]+0.5*m2)*(a[ir]+0.5*m2)-1)/(r[ir]+0.5*deltaR));
+                //calculate m4 and n4
+                m4 = deltaR*    (a[ir]+m3)*(Beta[ir+1]-0.5*((a[ir]+m3)*(a[ir]+m3)-1)/r[ir+1]);
+                n4 = deltaR*(alpha[ir]+n3)*(Beta[ir+1]+0.5*((a[ir]+m3)*(a[ir]+m3)-1)/r[ir+1]);
+                //Calculate next step for a and alpha
+                a[ir+1]     = a[ir]     +(m1 +2.0*(m2+m3) +m4)/6.0;
+                alpha[ir+1] = alpha[ir] +(n1 +2.0*(n2+n3) +n4)/6.0;
+            }
+            for(int ir=0;ir<nR;ir++){
+                Gamma[ir]   =        alpha[ir]*( Pi[ir]+_rk[n]*deltaT*l_n[ir])/a[ir];
+                Epsilon[ir] = r2[ir]*alpha[ir]*(Phi[ir]+_rk[n]*deltaT*k_n[ir])/a[ir];
+            }
+            for(int ir=0;ir<5;ir++)
+                Chi[ir] = alpha[ir]*(Phi[ir]+_rk[n]*deltaT*k_n[ir])/a[ir];
+
+            j_n[0] = Gamma[0];
+            //k_n[0] = leftmost_D1(Gamma,0,deltaR);
+            //l_n[0] = leftmost_D1(Epsilon,0,deltaR)/r2[0];
+            k_n[0] = 0;
+            l_n[0] = centered_r0_odd_D1(Chi,deltaR); //Chi is odd because Phi is odd
+            j_n[1] = Gamma[1];
+            //k_n[1] = leftmid_D1(Gamma,1,deltaR);
+            //l_n[1] = leftmid_D1(Epsilon,1,deltaR)/r2[1];
+            k_n[1] = centered_r1_even_D1(Gamma,deltaR); //Gamma is even because Pi es even
+            l_n[1] = centered_r1_odd_D1(Epsilon,deltaR)/r2[1]; //Epsilon is odd because Phi is odd
             //#pragma omp parallel for
             for(int ir=2;ir<nR-2;ir++){
                 j_n[ir] = Gamma[ir];
@@ -625,7 +852,7 @@ int main(int argc, char* argv[]){
     //Define simulation parameters
     int fType = 0;
     if((argc>1) && atoi(argv[1])) fType = atoi(argv[1]);
-    double p0 = 0.001;
+    double p0 = 0.000008;
     if((argc>2) && atof(argv[2])) p0 = atof(argv[2]);
     double r0 = 20.;
     if((argc>3) && atof(argv[3])) r0 = atof(argv[3]);
@@ -640,9 +867,9 @@ int main(int argc, char* argv[]){
     if((argc>5) && atof(argv[5])) epsilon  = atof(argv[5]);
     
     //Define simulation limits
-    double deltaR = 0.001;
+    double deltaR = 0.01;
     if((argc>6) && atof(argv[6])) deltaR = atof(argv[6]);
-    int maxR = 70;
+    int maxR = 50;
     if((argc>7) && atoi(argv[7])) maxR = atoi(argv[7]);
     int iterations = ITERATIONS;
     if((argc>8) && atoi(argv[8])) iterations = atoi(argv[8]);
@@ -657,7 +884,7 @@ int main(int argc, char* argv[]){
     //Pass initial conditions to iteration
     if((argc>9) && atoi(argv[9])) omp_set_num_threads(atoi(argv[9]));
     time_t initTime = time(NULL);
-    hist = iteration(r,phi,Phi,Pi,deltaR,maxR,iterations,SAVE_ITERATION,epsilon);
+    hist = iteration2(r,phi,Phi,Pi,deltaR,maxR,iterations,SAVE_ITERATION,epsilon);
     time_t finalTime = time(NULL);
     int nP = omp_get_max_threads();
     time_t timeDelta = (finalTime-initTime);

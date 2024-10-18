@@ -13,11 +13,11 @@ void omp_set_num_threads(){return;}
 
 #define MASS 0
 #define METRIC 1 // 0 = minkowski; 1 = choptuik; 2 = modified choptuik
-#define SAVE_MODE 0 // 0 = save uniformly on every SAVE_RES and SAVE_ITERATION ; 1 = save all points after FIRST_ITERATION and with r > MIN_R
+#define SAVE_MODE 1 // 0 = save uniformly on every SAVE_RES and SAVE_ITERATION ; 1 = save all points after FIRST_ITERATION and with r > MIN_R
 #define SAVE_RES 50
 #define SAVE_ITERATION 10
-#define FIRST_ITERATION 77950
-#define MIN_R 50
+#define FIRST_ITERATION 7700 //77950
+#define MIN_R 0
 #define ITERATIONS 78500
 #define EPSILON 0.0 // Default Kreiss-Oliger dampening
 #define PI 3.141592653
@@ -508,6 +508,8 @@ double** iteration2(double* r,double* phi,double* Phi,double* Pi,double deltaR,i
     double m1, n1, m2, n2, m3, n3, m4, n4;
 
     double *Chi = malloc(sizeof(double)*5);
+    double *rPhi = malloc(sizeof(double)*5);
+    double *rPi = malloc(sizeof(double)*5);
     double *j_n = malloc(sizeof(double)*nR);
     double *k_n = malloc(sizeof(double)*nR);
     double *l_n = malloc(sizeof(double)*nR);
@@ -544,6 +546,7 @@ double** iteration2(double* r,double* phi,double* Phi,double* Pi,double deltaR,i
     for(int ir=0;ir<nR;ir++){
         a[ir] = 1.;
         alpha[ir] = 1.;
+        r2[ir] = r[ir]*r[ir];
     }
     if(METRIC == 0){
         for(int i=1;i<nR;i++){
@@ -551,19 +554,8 @@ double** iteration2(double* r,double* phi,double* Phi,double* Pi,double deltaR,i
             //alpha[i] = pow(E,r[i]/100);
         }
     }
-    for(int ir=0;ir<nR;ir++){
-        Gamma[ir] = alpha[ir]/a[ir];
-        r2[ir] = r[ir]*r[ir];
-        Epsilon[ir] = r2[ir]*Gamma[ir];
-    }
 
     for(int i=0;i<iterations;i++){
-        
-        //for(int ir=0;ir<nR;ir++)
-        //    Beta[ir] = 2.0*PI*r[ir]*(Pi[ir]*Pi[ir]+Phi[ir]*Phi[ir]);
-        //for(int ir=0;ir<nR-1;ir++)
-        //    Beta1_2[ir] = 0.5*PI*(r[ir]+0.5*deltaR)*((Pi[ir]+Pi[ir+1])*(Pi[ir]+Pi[ir+1])+(Phi[ir]+Phi[ir+1])*(Phi[ir]+Phi[ir+1]));
-        //metric_iteration1(Beta,Beta1_2,a,alpha,r,nR,deltaR);
 
         if(SAVE_MODE == 0){
             //Save values of Phi, Pi, phi, a and alpha
@@ -612,38 +604,6 @@ double** iteration2(double* r,double* phi,double* Phi,double* Pi,double deltaR,i
             }
         }
 
-        /*
-        //Calculate Kreiss-Oliger dissipation of 6th order for next step
-        Phi_ko[0] = (14.71804060*Phi[0]-99.3467741*Phi[1]+287.0017918*Phi[2]-459.938769*Phi[3]+441.5412182*Phi[4]-253.8862004*Phi[5]+80.9492233*Phi[6]-11.03853045*Phi[7])/3.67951015;
-        Pi_ko[ 0] = (14.71804060* Pi[0]-99.3467741* Pi[1]+287.0017918* Pi[2]-459.938769* Pi[3]+441.5412182* Pi[4]-253.8862004* Pi[5]+80.9492233* Pi[6]-11.03853045* Pi[7])/3.67951015;
-        Phi_ko[1] = 3*Phi[0]-20*Phi[1]+57*Phi[2]-90*Phi[3]+85*Phi[4]-48*Phi[5]+15*Phi[6]-2*Phi[7];
-        Pi_ko[ 1] = 3* Pi[0]-20* Pi[1]+57* Pi[2]-90* Pi[3]+85* Pi[4]-48* Pi[5]+15* Pi[6]-2* Pi[7];
-        Phi_ko[2] = 2*Phi[0]-13*Phi[1]+36*Phi[2]-55*Phi[3]+50*Phi[4]-27*Phi[5]+8*Phi[6]-1*Phi[7];
-        Pi_ko[ 2] = 2* Pi[0]-13* Pi[1]+36* Pi[2]-55* Pi[3]+50* Pi[4]-27* Pi[5]+8* Pi[6]-1* Pi[7];
-        //Phi_ko[0] = Phi[0]-6.0*Phi[1]+15.0*Phi[2]-20.0*Phi[3]+15.0*Phi[4]-6.0*Phi[5]+Phi[6];
-        //Pi_ko[ 0] =  Pi[0]-6.0* Pi[1]+15.0* Pi[2]-20.0* Pi[3]+15.0* Pi[4]-6.0* Pi[5]+ Pi[6];
-        //Phi_ko[1] = Phi[0]-6.0*Phi[1]+15.0*Phi[2]-20.0*Phi[3]+15.0*Phi[4]-6.0*Phi[5]+Phi[6];
-        //Pi_ko[ 1] =  Pi[0]-6.0* Pi[1]+15.0* Pi[2]-20.0* Pi[3]+15.0* Pi[4]-6.0* Pi[5]+ Pi[6];
-        //Phi_ko[2] = Phi[0]-6.0*Phi[1]+15.0*Phi[2]-20.0*Phi[3]+15.0*Phi[4]-6.0*Phi[5]+Phi[6];
-        //Pi_ko[ 2] =  Pi[0]-6.0* Pi[1]+15.0* Pi[2]-20.0* Pi[3]+15.0* Pi[4]-6.0* Pi[5]+ Pi[6];
-        //Phi_ko[0] = -20.0*Phi[0]+30.0*Phi[1]-12.0*Phi[2] +2.0*Phi[3];
-        //Pi_ko[ 0] = -20.0* Pi[0]+30.0* Pi[1]-12.0* Pi[2] +2.0* Pi[3];
-        //Phi_ko[1] =  15.0*Phi[0]-26.0*Phi[1]+16.0*Phi[2] -6.0*Phi[3]    +Phi[4];
-        //Pi_ko[ 1] =  15.0* Pi[0]-26.0* Pi[1]+16.0* Pi[2] -6.0* Pi[3]    + Pi[4];
-        //Phi_ko[2] =  -6.0*Phi[0]+16.0*Phi[1]-20.0*Phi[2]+15.0*Phi[3]-6.0*Phi[4]+Phi[5];
-        //Pi_ko[ 2] =  -6.0* Pi[0]+16.0* Pi[1]-20.0* Pi[2]+15.0* Pi[3]-6.0* Pi[4]+ Pi[5];
-        for(int ir=3;ir<nR-3;ir++){
-            Phi_ko[ir] = Phi[ir-3]-6.0*Phi[ir-2]+15.0*Phi[ir-1]-20.0*Phi[ir]+15.0*Phi[ir+1]-6.0*Phi[ir+2]+Phi[ir+3];
-            Pi_ko[ir]  =  Pi[ir-3]-6.0* Pi[ir-2]+15.0* Pi[ir-1]-20.0* Pi[ir]+15.0* Pi[ir+1]-6.0* Pi[ir+2]+ Pi[ir+3];
-        }
-        Phi_ko[nR-3] = Phi[nR-6]-6.0*Phi[nR-5]+15.0*Phi[nR-4]-20.0*Phi[nR-3]+15.0*Phi[nR-2]-6.0*Phi[nR-1];
-        Pi_ko[ nR-3] =  Pi[nR-6]-6.0* Pi[nR-5]+15.0* Pi[nR-4]-20.0* Pi[nR-3]+15.0* Pi[nR-2]-6.0* Pi[nR-1];
-        Phi_ko[nR-2] = Phi[nR-5]-6.0*Phi[nR-4]+15.0*Phi[nR-3]-20.0*Phi[nR-2]+15.0*Phi[nR-1];
-        Pi_ko[ nR-2] =  Pi[nR-5]-6.0* Pi[nR-4]+15.0* Pi[nR-3]-20.0* Pi[nR-2]+15.0* Pi[nR-1];
-        Phi_ko[nR-1] = Phi[nR-4]-6.0*Phi[nR-3]+15.0*Phi[nR-2]-20.0*Phi[nR-1];
-        Pi_ko[ nR-1] =  Pi[nR-4]-6.0* Pi[nR-3]+15.0* Pi[nR-2]-20.0* Pi[nR-1];
-        */
-
         //Advance Pi and Phi using RK4 
         for(int ir=0;ir<nR;ir++){
             l_n[ir] = 0.0;
@@ -664,7 +624,7 @@ double** iteration2(double* r,double* phi,double* Phi,double* Pi,double deltaR,i
                     ( Pi_rk[ir] + Pi_rk[ir+1])*( Pi_rk[ir] + Pi_rk[ir+1]) +
                     (Phi_rk[ir] +Phi_rk[ir+1])*(Phi_rk[ir] +Phi_rk[ir+1]));
             }
-            //First iterate the metric for this Runge-Kutta steo
+            //First iterate the metric for this Runge-Kutta step
             for(int ir=0;ir<nR-1;ir++){
                 //calculate m1 and n1
                 m1 = deltaR*    a[ir]*(Beta[ir]-0.5*(a[ir]*a[ir]-1)/r[ir]);
@@ -686,8 +646,13 @@ double** iteration2(double* r,double* phi,double* Phi,double* Pi,double deltaR,i
                 Gamma[ir]   =        alpha[ir]*( Pi_rk[ir])/a[ir];
                 Epsilon[ir] = r2[ir]*alpha[ir]*(Phi_rk[ir])/a[ir];
             }
-            for(int ir=0;ir<5;ir++)
-                Chi[ir] = alpha[ir]*(Phi_rk[ir])/a[ir];
+            for(int ir=0;ir<5;ir++){
+                 Chi[ir] = alpha[ir]*(Phi_rk[ir])/a[ir];
+                rPhi[ir] = r[nR-5 +ir]*Phi_rk[nR-5 +ir];
+                 rPi[ir] = r[nR-5 +ir]* Pi_rk[nR-5 +ir];
+            }
+
+
 
             j_n[0] = Gamma[0];
             
@@ -707,11 +672,11 @@ double** iteration2(double* r,double* phi,double* Phi,double* Pi,double deltaR,i
                 l_n[ir] = centered_D1(Epsilon,ir,deltaR)/r2[ir];
             }
             j_n[nR-2] = Gamma[nR-2];
-            k_n[nR-2] = 0;
-            l_n[nR-2] = 0;
+            k_n[nR-2] = rightmid_D1(Gamma,nR-2,deltaR);
+            l_n[nR-2] = rightmid_D1(Epsilon,nR-2,deltaR)/r2[nR-2];
             j_n[nR-1] = Gamma[nR-1];
-            k_n[nR-1] = 0;
-            l_n[nR-1] = 0;
+            k_n[nR-1] = -rightmost_D1(rPhi,4,deltaR)/r[nR-1];
+            l_n[nR-1] =  -rightmost_D1(rPi,4,deltaR)/r[nR-1];
 
             //Calculate phi, Phi and Pi on next step
             for(int ir=0;ir<nR;ir++){

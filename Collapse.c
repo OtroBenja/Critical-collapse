@@ -507,7 +507,6 @@ double** iteration2(double* r,double* phi,double* Phi,double* Pi,double deltaR,i
     double *r2 = malloc(sizeof(double)*nR);
     double m1, n1, m2, n2, m3, n3, m4, n4;
 
-    double *Chi = malloc(sizeof(double)*5);
     double *rPhi = malloc(sizeof(double)*5);
     double *rPi = malloc(sizeof(double)*5);
     double *j_n = malloc(sizeof(double)*nR);
@@ -647,7 +646,6 @@ double** iteration2(double* r,double* phi,double* Phi,double* Pi,double deltaR,i
                 Epsilon[ir] = r2[ir]*alpha[ir]*(Phi_rk[ir])/a[ir];
             }
             for(int ir=0;ir<5;ir++){
-                 Chi[ir] = alpha[ir]*(Phi_rk[ir])/a[ir];
                 rPhi[ir] = r[nR-5 +ir]*Phi_rk[nR-5 +ir];
                  rPi[ir] = r[nR-5 +ir]* Pi_rk[nR-5 +ir];
             }
@@ -655,11 +653,9 @@ double** iteration2(double* r,double* phi,double* Phi,double* Pi,double deltaR,i
 
 
             j_n[0] = Gamma[0];
-            
-            
             k_n[0] = 0;
-            l_n[0] = leftmost_D1(Chi,0,deltaR); //Chi is odd because Phi is odd
-            //l_n[0] = centered_r0_odd_D1(Chi,deltaR); //Chi is odd because Phi is odd
+            l_n[0] = leftmost_D1(Phi_rk,0,deltaR);
+            //l_n[0] = centered_r0_odd_D1(Phi_rk,deltaR); //Phi is odd
             j_n[1] = Gamma[1];
             k_n[1] = leftmid_D1(Gamma,1,deltaR);
             l_n[1] = leftmid_D1(Epsilon,1,deltaR)/r2[1];
@@ -676,7 +672,7 @@ double** iteration2(double* r,double* phi,double* Phi,double* Pi,double deltaR,i
             l_n[nR-2] = rightmid_D1(Epsilon,nR-2,deltaR)/r2[nR-2];
             j_n[nR-1] = Gamma[nR-1];
             k_n[nR-1] = -rightmost_D1(rPhi,4,deltaR)/r[nR-1];
-            l_n[nR-1] =  -rightmost_D1(rPi,4,deltaR)/r[nR-1];
+            l_n[nR-1] = -rightmost_D1( rPi,4,deltaR)/r[nR-1];
 
             //Calculate phi, Phi and Pi on next step
             for(int ir=0;ir<nR;ir++){

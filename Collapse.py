@@ -2,9 +2,9 @@ import numpy as np
 from numba import njit
 from scipy.integrate import RK45, DOP853, solve_ivp
 
-deltaR = 0.01
+deltaR = 0.001
 deltaT = deltaR/5.0
-iterations = 781
+iterations = 78
 min_iterations = 0
 
 def initialize_r(r0,maxR):
@@ -145,11 +145,12 @@ def iterate(R,Phi,Pi,Phi_hist,A_hist,iter,min_iter):
         Phi = Phi + (k1+2.0*k2+2.0*k3+k4)/6.0
         Pi  = Pi + (l1+2.0*l2+2.0*l3+l4)/6.0
 
-def iterate_scipy(R,Phi,Pi,Phi_hist,A_hist,iterations,min_iter,save_iter):
+def iterate_scipy(R,Phi,Pi,phi,iterations,min_iter,save_iter):
     a = np.ones_like(R)
     alpha = np.ones_like(R)
     sizeR = len(R)
     maxT = deltaT*iterations
+    save = np.arange(min_iter,maxT,deltaT*save_iter)
 
     #define vectorized sistem of equations F
     y1 = np.array((Phi,Pi))
@@ -213,30 +214,30 @@ def iterate_scipy(R,Phi,Pi,Phi_hist,A_hist,iterations,min_iter,save_iter):
     #    A_hist[i-min_iter] = a
 
     # next Phi and Pi step with RK4
-    return solve_ivp(fun=F2,t_span=(0,maxT),y0=y2,max_step=deltaT,vectorized=False,first_step=deltaT,method='RK23',t_eval=save_iter)
-        
-    
+    return solve_ivp(fun=F2,t_span=(0,maxT),y0=y2,max_step=deltaT,vectorized=False,first_step=deltaT,method='RK45',t_eval=save)
+
 
 r = initialize_r(deltaR*0.1,maxR = 50)
 phi, Phi, Pi = initialize_fields(r)
 Phi_hist = np.empty((iterations-min_iterations,len(r)))
 A_hist   = np.empty((iterations-min_iterations,len(r)))
 
-
 do_scipy = True
 if do_scipy:
-    save_iterations = np.arange(min_iterations,iterations,10)*deltaR
+    #save_iterations = np.arange(min_iterations,iterations,)*deltaR
     print('Iteration started')
-    result = iterate_scipy(r,Phi,Pi,Phi_hist,A_hist,iterations,min_iterations,save_iterations)
+    result = iterate_scipy(r,Phi,Pi,phi,iterations,min_iterations,save_iter=10)
     print(result.message)
     if result.success:
+        phi_file = open('phi.bin','wb')
         Phi_file = open('Phi.bin','wb')
-        Pi_file  = open('A.bin','wb')
+        Pi_file  = open('Pi.bin','wb')
         R_file   = open('R.bin','wb')
         
         np.array(result.y)[:len(r)].tofile(Phi_file)
-        R_file.write(bytes(r))
         np.array(result.y)[len(r):].tofile( Pi_file)
+        phi_file.write(bytes(phi))
+        R_file.write(bytes(r))
 else:
     print('Compiling functions...')
     iterate(r,Phi,Pi,Phi_hist,A_hist,2,1)

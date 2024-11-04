@@ -1,4 +1,3 @@
-
 #pragma once
 
 double leftmost_D1(double *f,int idx,double deltaR){

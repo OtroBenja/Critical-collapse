@@ -1,5 +1,3 @@
-
-
 #include "derivatives.h"
 #include "constants.h"
 

@@ -1,6 +1,7 @@
-
 #include <stdlib.h>
 #include "constants.h"
+#include "derivatives.h"
+#include "metric.h"
 
 double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,int maxR,int iterations,int save_iteration,double epsilon){
 
@@ -139,27 +140,8 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
                     (Phi_rk[ir] +Phi_rk[ir+1])*(Phi_rk[ir] +Phi_rk[ir+1]));
             }
             //First iterate the metric for this Runge-Kutta step
-            alpha[0] = 1;
-            for(int ir=0;ir<nR-1;ir++){
-                //calculate m1 and n1
-                m1 = deltaR*    a[ir]*(Beta[ir]-0.5*(a[ir]*a[ir]-1)/r[ir]);
-                n1 = deltaR*alpha[ir]*(Beta[ir]+0.5*(a[ir]*a[ir]-1)/r[ir]);
-                //calculate m2 and n2
-                m2 = deltaR*    (a[ir]+0.5*m1)*(Beta1_2[ir]-0.5*((a[ir]+0.5*m1)*(a[ir]+0.5*m1)-1)/(r[ir]+0.5*deltaR));
-                n2 = deltaR*(alpha[ir]+0.5*n1)*(Beta1_2[ir]+0.5*((a[ir]+0.5*m1)*(a[ir]+0.5*m1)-1)/(r[ir]+0.5*deltaR));
-                //calculate m3 and n3
-                m3 = deltaR*    (a[ir]+0.5*m2)*(Beta1_2[ir]-0.5*((a[ir]+0.5*m2)*(a[ir]+0.5*m2)-1)/(r[ir]+0.5*deltaR));
-                n3 = deltaR*(alpha[ir]+0.5*n2)*(Beta1_2[ir]+0.5*((a[ir]+0.5*m2)*(a[ir]+0.5*m2)-1)/(r[ir]+0.5*deltaR));
-                //calculate m4 and n4
-                m4 = deltaR*    (a[ir]+m3)*(Beta[ir+1]-0.5*((a[ir]+m3)*(a[ir]+m3)-1)/r[ir+1]);
-                n4 = deltaR*(alpha[ir]+n3)*(Beta[ir+1]+0.5*((a[ir]+m3)*(a[ir]+m3)-1)/r[ir+1]);
-                //Calculate next step for a and alpha
-                a[ir+1]     = a[ir]     +(m1 +2.0*(m2+m3) +m4)/6.0;
-                alpha[ir+1] = alpha[ir] +(n1 +2.0*(n2+n3) +n4)/6.0;
-            }
-            temp = 1.0/(alpha[nR-1]*a[nR-1]);
+            metric_iteration(Beta, Beta1_2, a, alpha, r, nR, deltaR);
             for(int ir=0;ir<nR;ir++){
-                alpha[ir]   = alpha[ir]*temp;
                 Gamma[ir]   =        alpha[ir]*( Pi_rk[ir])/(a[ir]);
                 Epsilon[ir] = r2[ir]*alpha[ir]*(Phi_rk[ir])/(a[ir]);
             }

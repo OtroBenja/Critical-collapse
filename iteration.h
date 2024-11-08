@@ -1,13 +1,13 @@
 #include <stdlib.h>
 #include "constants.h"
 #include "derivatives.h"
-#include "metric.h"
+#include "integration.h"
 
-double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,int maxR,int iterations,int save_iteration,double epsilon){
+double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,double maxR,int iterations,int save_iteration,double epsilon){
 
-    int nR = maxR/deltaR;
-    int noSaveNR = MIN_R/deltaR;
-    int saveNR = (maxR-MIN_R)/deltaR;
+    int nR = (int)(maxR/deltaR);
+    int noSaveNR = (int)(MIN_R/deltaR);
+    int saveNR = (int)((maxR-MIN_R)/deltaR);
     double deltaT = deltaR/5.;
     double mass;
     double *a = malloc(sizeof(double)*nR);
@@ -70,6 +70,18 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
         }
     }
 
+    //Calculate the metric before starting the iteration
+    for(int ir=0;ir<nR;ir++){
+        Beta[ir] = 2.0*PI*r[ir]*((Pi[ir])*(Pi[ir]) + (Phi[ir])*(Phi[ir]));
+    }
+    for(int ir=0;ir<nR-1;ir++){
+        Beta1_2[ir] = 0.5*PI*(r[ir]+0.5*deltaR)*(
+            ( Pi[ir] + Pi[ir+1])*( Pi[ir] + Pi[ir+1]) +
+            (Phi[ir] +Phi[ir+1])*(Phi[ir] +Phi[ir+1]));
+    }
+    metric_iteration(Beta, Beta1_2, a, alpha, r, nR, deltaR);
+
+    //Start the iteration
     for(int i=0;i<iterations;i++){
 
         if(SAVE_MODE == 0){
@@ -77,11 +89,7 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
             if(save_count == save_iteration){
                 //printf("iteration %d\n",i);
                 if(MASS){
-                    mass = 0;
-                    for(int ir=0;ir<nR;ir++){
-                        mass += 2.0*PI*(Phi[ir]*Phi[ir] +Pi[ir]*Pi[ir])*r2[ir]/(a[ir]*a[ir])*deltaR;;
-                    }
-                    Mhistory[i/save_iteration] = mass;
+                    Mhistory[i/save_iteration] = get_mass(r,Phi,Pi,a,maxR,deltaR);;
                 }
                 for(int ir=0;ir<(nR/SAVE_RES);ir++){
                     //Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]*Phi[ir*SAVE_RES]*sqrt(2*PI)/a[ir*SAVE_RES];
@@ -103,11 +111,7 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,in
                 int save_iter = i - FIRST_ITERATION;
                 //printf("iteration %d\n",i);
                 if(MASS){
-                    mass = 0;
-                    for(int ir=0;ir<nR;ir++){
-                        mass += 2.0*PI*(Phi[ir]*Phi[ir] +Pi[ir]*Pi[ir])*r2[ir]/(a[ir]*a[ir])*deltaR;
-                    }
-                    Mhistory[save_iter] = mass;
+                    Mhistory[save_iter] = get_mass(r,Phi,Pi,a,maxR,deltaR);
                 }
                 for(int ir=0;ir<saveNR;ir++){
                     Xhistory[save_iter*saveNR + ir] =   Phi[noSaveNR + ir];

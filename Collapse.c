@@ -44,8 +44,8 @@ int main(int argc, char* argv[]){
     //Define simulation limits
     double deltaR = 0.01;
     if((argc>6) && atof(argv[6])) deltaR = atof(argv[6]);
-    int maxR = 50;
-    if((argc>7) && atoi(argv[7])) maxR = atoi(argv[7]);
+    double maxR = 50;
+    if((argc>7) && atoi(argv[7])) maxR = atof(argv[7]);
     int iterations = ITERATIONS;
     if((argc>8) && atoi(argv[8])) iterations = atoi(argv[8]);
     printf("Total iterations: %d\n",iterations);

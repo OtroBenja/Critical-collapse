@@ -1,3 +1,15 @@
+#pragma once
+
+#include "constants.h"
+
+double get_mass(double *r, double *Phi, double *Pi, double *a, double maxR, double deltaR){
+    double mass = 0;
+    int nR = (int)(maxR/deltaR);
+    for(int ir=0;ir<nR;ir++){
+        mass += 2.0*PI*(Phi[ir]*Phi[ir] +Pi[ir]*Pi[ir])*r[ir]*r[ir]/(a[ir]*a[ir])*deltaR;
+    }
+    return mass;
+}
 
 void metric_iteration(double* Beta, double* Beta1_2, double* a, double* alpha, double* r, int nR, double deltaR){
     

@@ -14,15 +14,15 @@ void print_mass(double *MassHist,struct tm time_data,int print_iterations){
     fclose(data);
 }
 
-void print_data(double **hist,int fType,double *model_parameters,int iterations,int maxR,double deltaR,int nP,time_t totalTime,double epsilon){
+void print_data(double **hist,int fType,double *model_parameters,int iterations,double maxR,double deltaR,int nP,time_t totalTime,double epsilon){
     int print_iterations, printR;
     if(SAVE_MODE == 0){
         print_iterations = iterations/SAVE_ITERATION;
-        printR = (maxR/deltaR)/SAVE_RES;
+        printR = (int)((maxR/deltaR)/SAVE_RES);
     }
     if(SAVE_MODE == 1){
         print_iterations = iterations;
-        printR = maxR/deltaR;
+        printR = (int)(maxR/deltaR);
     }
     double p0 = model_parameters[0];
     double r0 = model_parameters[1];
@@ -48,9 +48,19 @@ void print_data(double **hist,int fType,double *model_parameters,int iterations,
     fprintf(data,"p0: %lf\n",p0);
     fprintf(data,"r0: %lf\n",r0);
     fprintf(data,"d: %lf\n",d);
-    fprintf(data,"Kreiss-Oliger Coefficient: %lf\n",epsilon);
+
+    //Calculate and print final BH mass and radius
+    double BHmass = 0.0;
+    double BHradius = 0.0;
+    for(int ir=0;ir<printR;ir++){
+        if (hist[5][(print_iterations-1)*printR +ir] < TOLERANCE) BHradius = hist[0][ir];
+    }
+    if (BHradius>0.0) BHmass = get_mass(hist[0],hist[1]+(print_iterations-1)*printR,hist[2]+(print_iterations-1)*printR,
+                                    hist[3]+(print_iterations-1)*printR,BHradius,printR);
+    fprintf(data,"Final BH radius: %lf\n",BHradius);
+    fprintf(data,"Final BH mass: %lf\n",BHmass);
     fprintf(data,"R step size: %lf\n",deltaR);
-    fprintf(data,"Maximum R: %d\n",maxR);
+    fprintf(data,"Maximum R: %lf\n",maxR);
     fprintf(data,"Iterations: %d\n",iterations);
     fprintf(data,"Number of threads: %d\n",nP);
     fprintf(data,"Total simulation time: %ld\n",totalTime);

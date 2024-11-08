@@ -10,6 +10,7 @@ double** initialize_field(int fType,double* model_parameters,double deltaR,int m
     double* r = malloc(sizeof(double)*nR);
     double* phi = malloc(sizeof(double)*nR);
     double* Phi = malloc(sizeof(double)*nR);
+    double* rphi = malloc(sizeof(double)*nR);
     double* Pi = malloc(sizeof(double)*nR);
     double** return_values = malloc(sizeof(double*)*4);
 
@@ -47,6 +48,21 @@ double** initialize_field(int fType,double* model_parameters,double deltaR,int m
     for(int i=0;i<nR;i++){
         Pi[i] = 0;
     }
+
+    //Set initial Pi to move left
+
+    for(int i=0;i<nR;i++){
+        rphi[i] = r[i]*phi[i];
+    }
+    Pi[0] = 0;
+    Pi[1] = leftmid_D1(rphi, 1, deltaR)/r[1];
+    for(int i=2;i<nR-2;i++){
+        Pi[i] = centered_D1(rphi, i, deltaR)/r[i];
+    }
+    Pi[nR-2] = rightmid_D1(rphi, nR-2, deltaR)/r[nR-2];
+    Pi[nR-1] = 0;
+
+    free(rphi);
         
     return_values[0] = r;
     return_values[1] = phi;

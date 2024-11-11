@@ -50,15 +50,15 @@ void print_data(double **hist,int fType,double *model_parameters,int iterations,
     fprintf(data,"d: %lf\n",d);
 
     //Calculate and print final BH mass and radius
-    double BHmass = 0.0;
-    double BHradius = 0.0;
-    for(int ir=0;ir<printR;ir++){
-        if (hist[5][(print_iterations-1)*printR +ir] < TOLERANCE) BHradius = hist[0][ir];
-    }
-    if (BHradius>0.0) BHmass = get_mass(hist[0],hist[1]+(print_iterations-1)*printR,hist[2]+(print_iterations-1)*printR,
-                                    hist[3]+(print_iterations-1)*printR,BHradius,printR);
-    fprintf(data,"Final BH radius: %lf\n",BHradius);
-    fprintf(data,"Final BH mass: %lf\n",BHmass);
+    //double BHmass = 0.0;
+    //double BHradius = 0.0;
+    //for(int ir=0;ir<printR;ir++){
+    //    if (hist[5][(print_iterations-1)*printR +ir] < TOLERANCE) BHradius = hist[0][ir];
+    //}
+    //if (BHradius>0.0) BHmass = get_mass(hist[0],hist[1]+(print_iterations-1)*printR,hist[2]+(print_iterations-1)*printR,
+    //                                hist[3]+(print_iterations-1)*printR,BHradius,printR);
+    fprintf(data,"Final BH radius: %lf\n",bh_radius);
+    fprintf(data,"Final BH mass: %lf\n",bh_mass);
     fprintf(data,"R step size: %lf\n",deltaR);
     fprintf(data,"Maximum R: %lf\n",maxR);
     fprintf(data,"Iterations: %d\n",iterations);

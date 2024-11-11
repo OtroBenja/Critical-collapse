@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdbool.h>
 #include "constants.h"
 #include "derivatives.h"
 #include "integration.h"
@@ -10,6 +11,12 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,do
     int saveNR = (int)((maxR-MIN_R)/deltaR);
     double deltaT = deltaR/5.;
     double mass;
+    double max_a = pow(TOLERANCE,-0.5); // Max value of 'a' according to g^rr tolerance
+    bh_mass = 0;
+    bh_radius = 0;
+    is_bh = false;
+    last_iteration = iterations;
+
     double *a = malloc(sizeof(double)*nR);
     double *alpha = malloc(sizeof(double)*nR);
     double *Beta = malloc(sizeof(double)*nR);
@@ -62,12 +69,6 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,do
         a[ir] = 1.;
         alpha[ir] = 1.;
         r2[ir] = r[ir]*r[ir];
-    }
-    if(METRIC == 0){
-        for(int i=1;i<nR;i++){
-            //a[i] = 1.0 + 0.0001*pow(r[i],3)*pow(E,-pow((r[i]-10.0)/10,2));
-            //alpha[i] = pow(E,r[i]/100);
-        }
     }
 
     //Calculate the metric before starting the iteration
@@ -122,6 +123,18 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,do
                 }
             }
         }
+
+        //Check if a collapse has happened if a > 1/TOLERANCE^2
+        for(int ir=0;ir<nR;ir++){
+            if(a[ir]>max_a){
+                bh_radius = r[ir];
+                bh_mass = get_mass(r,Phi,Pi,a,bh_radius,deltaR);
+                last_iteration = i;
+                is_bh = true;
+                break;
+            }
+        }
+        if(is_bh) break;
 
         //Advance Pi and Phi using RK4 
         for(int ir=0;ir<nR;ir++){

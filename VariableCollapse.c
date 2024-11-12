@@ -14,12 +14,12 @@ void omp_set_num_threads(){return;}
 
 #include "derivatives.h"
 #include "initialize.h"
-#include "metric.h"
+#include "integration.h"
 #include "print.h"
 
 
 void integration_l(double *r_l, double *phi_l, double *Phi_l, double *Pi_l, double *a_l, double *alpha_l,
-                    int nR_l, double dR_l, int nT_l, double dT_l){
+                    double a0, double alpha0,int nR_l, double dR_l, int nT_l, double dT_l){
     double  rk[4] = {1.0,2.0,2.0,1.0};
     double _rk[4] = {1.0,0.5,0.5,1.0};
     double *rPhi_l = malloc(sizeof(double)*5);
@@ -64,7 +64,7 @@ void integration_l(double *r_l, double *phi_l, double *Phi_l, double *Pi_l, doub
             //printf("print_l 3\n");
             //First iterate the metric for this Runge-Kutta step
             //printf("print_l 4\n");
-            metric_iteration(Beta_l, Beta_p05_l, a_l, alpha_l, r_l, nR_l, dR_l);
+            metric_iteration(a0, alpha0, Beta_l, Beta_p05_l, a_l, alpha_l, r_l, nR_l, dR_l);
 
             for(int ir=0;ir<nR_l;ir++){
                 Gamma_l[ir]   =                 alpha_l[ir]*( Pi_rk_l[ir])/(a_l[ir]);
@@ -110,32 +110,45 @@ void integration_l(double *r_l, double *phi_l, double *Phi_l, double *Pi_l, doub
     }
 }
 
-double **variable_iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,int maxR,int iterations,int save_iteration,double epsilon){
-    int nR = maxR/deltaR;
+double **initialize_subgrid(double fType,double *model_params,double initial_r, double final_r, double deltaR){
+    double **initial_field;
+    initial_field = initialize_field(fType,model_params,deltaR,initial_r,final_r);
+
+    int nR = (int)((final_r-initial_r)/deltaR);
+    double nR_f = (double)nR;
+    double deltaT = deltaR/5.;
+    double *a     = malloc(sizeof(double)*nR);
+    double *alpha = malloc(sizeof(double)*nR);
+    double *dR_p  = &deltaR;
+    double *dT_p  = &deltaT;
+    double *nR_p  = &nR_f;
+    double *ri_p  = &initial_r;
+    double *rf_p  = &final_r;
+
+    double *subgrid[10];
+    subgrid[0] = initial_field[0];
+    subgrid[1] = initial_field[1];
+    subgrid[2] = initial_field[2];
+    subgrid[3] = a;
+    subgrid[4] = alpha;
+    subgrid[5] = dR_p;
+    subgrid[6] = dT_p;
+    subgrid[7] = nR_p;
+    subgrid[8] = ri_p;
+    subgrid[9] = rf_p;
+
+    return subgrid;
+}
+
+double **variable_iteration(int fType,double *model_params,double deltaR,int maxR,int iterations,int save_iteration){
     int noSaveNR = MIN_R/deltaR;
+    int nR = (int)(maxR/deltaR);
     int saveNR = (maxR-MIN_R)/deltaR;
     double deltaT = deltaR/5.;
     double mass;
-    double *a = malloc(sizeof(double)*nR);
-    double *alpha = malloc(sizeof(double)*nR);
-    double *Beta = malloc(sizeof(double)*nR);
-    double *Beta1_2 = malloc(sizeof(double)*nR);
-    double *Gamma = malloc(sizeof(double)*nR);
-    double *Epsilon = malloc(sizeof(double)*nR);
-    double *Phi_rk = malloc(sizeof(double)*nR);
-    double * Pi_rk = malloc(sizeof(double)*nR);
-    double m1, n1, m2, n2, m3, n3, m4, n4;
 
-    double *rPhi = malloc(sizeof(double)*5);
-    double *rPi = malloc(sizeof(double)*5);
-    double *j_n = malloc(sizeof(double)*nR);
-    double *k_n = malloc(sizeof(double)*nR);
-    double *l_n = malloc(sizeof(double)*nR);
-    double *j_sum = malloc(sizeof(double)*nR);
-    double *k_sum = malloc(sizeof(double)*nR);
-    double *l_sum = malloc(sizeof(double)*nR);
-    double  rk[4] = {1.0,2.0,2.0,1.0};
-    double _rk[4] = {0.0,0.5,0.5,1.0};
+    double **grid0;
+    grid0 = initialize_subgrid(fType,model_params,0.0,maxR,deltaR);
 
     double temp;
     double *temp_pointer;
@@ -270,7 +283,7 @@ int main(int argc, char* argv[]){
     if((argc>8) && atoi(argv[8])) iterations = atoi(argv[8]);
     printf("Total iterations: %d\n",iterations);
 
-    initial_conditions = initialize_field(fType,model_parameters,deltaR,maxR);
+    initial_conditions = initialize_field(fType,model_parameters,deltaR,0.0,maxR);
     r = initial_conditions[0];
     phi = initial_conditions[1];
     Phi = initial_conditions[2];

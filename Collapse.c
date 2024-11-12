@@ -56,7 +56,7 @@ int main(int argc, char* argv[]){
     if((argc>8) && atoi(argv[8])) iterations = atoi(argv[8]);
     printf("Total iterations: %d\n",iterations);
 
-    initial_conditions = initialize_field(fType,model_parameters,deltaR,maxR);
+    initial_conditions = initialize_field(fType,model_parameters,deltaR,0.0,maxR);
     r = initial_conditions[0];
     phi = initial_conditions[1];
     Phi = initial_conditions[2];

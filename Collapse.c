@@ -61,7 +61,6 @@ int main(int argc, char* argv[]){
     phi = initial_conditions[1];
     Phi = initial_conditions[2];
     Pi = initial_conditions[3];
-
     //Pass initial conditions to iteration
     omp_set_num_threads(1);
     if((argc>9) && atoi(argv[9])) omp_set_num_threads(atoi(argv[9]));

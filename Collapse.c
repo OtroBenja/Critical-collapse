@@ -65,7 +65,7 @@ int main(int argc, char* argv[]){
     omp_set_num_threads(1);
     if((argc>9) && atoi(argv[9])) omp_set_num_threads(atoi(argv[9]));
     time_t initTime = time(NULL);
-    hist = iteration(r,phi,Phi,Pi,deltaR,maxR,iterations,SAVE_ITERATION,epsilon);
+    hist = iteration(r,phi,Phi,Pi,deltaR,maxR,iterations,SAVE_ITERATION);
     time_t finalTime = time(NULL);
     int nP = omp_get_max_threads();
     time_t timeDelta = (finalTime-initTime);

@@ -11,7 +11,7 @@ double get_mass(double *r, double *Phi, double *Pi, double *a, double maxR, doub
     return mass;
 }
 
-void metric_iteration(double a0,double alpha0,double* Beta, double* Beta1_2, double* a, double* alpha, double* r, int nR, double deltaR){
+void metric_iteration(double a0,double alpha0,double* Beta, double* Beta1_2, double* a, double* alpha, double* r, int nR, double deltaR, bool normalize){
     
     double m1, n1, m2, n2, m3, n3, m4, n4, norm;
     a[0] = a0;
@@ -33,7 +33,8 @@ void metric_iteration(double a0,double alpha0,double* Beta, double* Beta1_2, dou
             a[ir+1] =     a[ir] +(m1 +2.0*(m2+m3) +m4)/6.0;
         alpha[ir+1] = alpha[ir] +(n1 +2.0*(n2+n3) +n4)/6.0;
     }
-    norm = 1.0/(alpha[nR-1]*a[nR-1]);
+    if (normalize) {norm = 1.0/(alpha[nR-1]*a[nR-1]);
+    } else {norm = 1.0;}
     for(int ir=0;ir<nR;ir++){
         alpha[ir] = alpha[ir]*norm;
     }

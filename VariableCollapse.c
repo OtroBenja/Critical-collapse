@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
+#include <stdbool.h>
 
 #if defined(_OPENMP)
 #include <omp.h>
@@ -12,102 +13,139 @@ int omp_get_thread_num(){return 1;}
 void omp_set_num_threads(){return;}
 #endif
 
+double bh_mass;
+double bh_radius;
+bool is_bh;
+int last_iteration;
+double **all_subgrids[10];
+
 #include "derivatives.h"
 #include "initialize.h"
 #include "integration.h"
 #include "print.h"
 
 
-void integration_l(double *r_l, double *phi_l, double *Phi_l, double *Pi_l, double *a_l, double *alpha_l,
-                    double a0, double alpha0,int nR_l, double dR_l, int nT_l, double dT_l){
+void full_metric(int level, int n_levels){
+    double a0 = 1.0;
+    double alpha0 = 1.0;
+    double *a;
+    double *alpha;
+    for (i=1;i<n_levels+1;i++){
+        a = all_subgrids[i]
+        = ;
+    }
+}
+
+void integration_l(double **grid_l, double a0, double alpha0, int nT){
     double  rk[4] = {1.0,2.0,2.0,1.0};
     double _rk[4] = {1.0,0.5,0.5,1.0};
-    double *rPhi_l = malloc(sizeof(double)*5);
-    double  *rPi_l = malloc(sizeof(double)*5);
+    double *rPhi = malloc(sizeof(double)*5);
+    double  *rPi = malloc(sizeof(double)*5);
     double temp1;
     double temp2;
 
-    double* Beta_l = malloc(sizeof(double)*nR_l);
-    double* Beta_p05_l = malloc(sizeof(double)*nR_l);
-    double* Gamma_l = malloc(sizeof(double)*nR_l);
-    double* Epsilon_l = malloc(sizeof(double)*nR_l);
-    double* Phi_rk_l = malloc(sizeof(double)*nR_l);
-    double*  Pi_rk_l = malloc(sizeof(double)*nR_l);
+    double *r = grid_l[0];
+    double *phi = grid_l[1];
+    double *Phi = grid_l[2];
+    double *Pi = grid_l[3];
+    double *a = grid_l[4];
+    double *alpha = grid_l[5];
 
-    double* Jn_l = malloc(sizeof(double)*nR_l);
-    double* Kn_l = malloc(sizeof(double)*nR_l);
-    double* Ln_l = malloc(sizeof(double)*nR_l);
-    double* Jsum_l = malloc(sizeof(double)*nR_l);
-    double* Ksum_l = malloc(sizeof(double)*nR_l);
-    double* Lsum_l = malloc(sizeof(double)*nR_l);
-    for(int it=0;it<nT_l;it++){
+    double dR = *(grid_l[6]);
+    double dT = *(grid_l[7]);
+    int nR = (int)(*(grid_l[8]));
+
+    double* Beta = malloc(sizeof(double)*nR);
+    double* Beta_p05 = malloc(sizeof(double)*nR);
+    double* Gamma = malloc(sizeof(double)*nR);
+    double* Epsilon = malloc(sizeof(double)*nR);
+    double* Phi_rk = malloc(sizeof(double)*nR);
+    double*  Pi_rk = malloc(sizeof(double)*nR);
+
+    double* Jn = malloc(sizeof(double)*nR);
+    double* Kn = malloc(sizeof(double)*nR);
+    double* Ln = malloc(sizeof(double)*nR);
+    double* Jsum = malloc(sizeof(double)*nR);
+    double* Ksum = malloc(sizeof(double)*nR);
+    double* Lsum = malloc(sizeof(double)*nR);
+    for(int it=0;it<nT;it++){
         //Advance Pi and Phi using RK4
-        for(int ir=0;ir<nR_l;ir++){
-            Ln_l[ir] = 0.0;
-            Kn_l[ir] = 0.0;
-            Jsum_l[ir] = 0.0;
-            Ksum_l[ir] = 0.0;
-            Lsum_l[ir] = 0.0;
+        for(int ir=0;ir<nR;ir++){
+            Ln[ir] = 0.0;
+            Kn[ir] = 0.0;
+            Jsum[ir] = 0.0;
+            Ksum[ir] = 0.0;
+            Lsum[ir] = 0.0;
         }
         //calculate jn, kn and ln
         for(int n=0;n<4;n++){
-            for(int ir=0;ir<nR_l;ir++){
-                Phi_rk_l[ir] = Phi_l[ir]+_rk[n]*dT_l*Kn_l[ir];
-                 Pi_rk_l[ir] =  Pi_l[ir]+_rk[n]*dT_l*Ln_l[ir];
-                Beta_l[ir] = 2.0*PI*r_l[ir]*((Pi_rk_l[ir])*(Pi_rk_l[ir]) + (Phi_rk_l[ir])*(Phi_rk_l[ir]));
+            for(int ir=0;ir<nR;ir++){
+                Phi_rk[ir] = Phi[ir]+_rk[n]*dT*Kn[ir];
+                 Pi_rk[ir] =  Pi[ir]+_rk[n]*dT*Ln[ir];
+                Beta[ir] = 2.0*PI*r[ir]*((Pi_rk[ir])*(Pi_rk[ir]) + (Phi_rk[ir])*(Phi_rk[ir]));
             }
-            for(int ir=0;ir<nR_l-1;ir++){
-                Beta_p05_l[ir] = 0.5*PI*(r_l[ir]+0.5*dR_l)*(
-                    ( Pi_rk_l[ir] + Pi_rk_l[ir+1])*( Pi_rk_l[ir] + Pi_rk_l[ir+1]) +
-                    (Phi_rk_l[ir] +Phi_rk_l[ir+1])*(Phi_rk_l[ir] +Phi_rk_l[ir+1]));
+            for(int ir=0;ir<nR-1;ir++){
+                Beta_p05[ir] = 0.5*PI*(r[ir]+0.5*dR)*(
+                    ( Pi_rk[ir] + Pi_rk[ir+1])*( Pi_rk[ir] + Pi_rk[ir+1]) +
+                    (Phi_rk[ir] +Phi_rk[ir+1])*(Phi_rk[ir] +Phi_rk[ir+1]));
             }
-            //printf("print_l 3\n");
             //First iterate the metric for this Runge-Kutta step
-            //printf("print_l 4\n");
-            metric_iteration(a0, alpha0, Beta_l, Beta_p05_l, a_l, alpha_l, r_l, nR_l, dR_l);
+            metric_iteration(a0, alpha0, Beta, Beta_p05, a, alpha, r, nR, dR);
 
-            for(int ir=0;ir<nR_l;ir++){
-                Gamma_l[ir]   =                 alpha_l[ir]*( Pi_rk_l[ir])/(a_l[ir]);
-                Epsilon_l[ir] = r_l[ir]*r_l[ir]*alpha_l[ir]*(Phi_rk_l[ir])/(a_l[ir]);
+            for(int ir=0;ir<nR;ir++){
+                Gamma[ir]   =                 alpha[ir]*( Pi_rk[ir])/(a[ir]);
+                Epsilon[ir] = r[ir]*r[ir]*alpha[ir]*(Phi_rk[ir])/(a[ir]);
             }
             for(int ir=0;ir<5;ir++){
-                rPhi_l[ir] = r_l[nR_l-5 +ir]*Phi_rk_l[nR_l-5 +ir];
-                 rPi_l[ir] = r_l[nR_l-5 +ir]* Pi_rk_l[nR_l-5 +ir];
+                rPhi[ir] = r[nR-5 +ir]*Phi_rk[nR-5 +ir];
+                 rPi[ir] = r[nR-5 +ir]* Pi_rk[nR-5 +ir];
             }
 
-            Jn_l[0] = Gamma_l[0];
-            Kn_l[0] = 0;
-            Ln_l[0] = alpha_l[0]*leftmost_D1(Phi_rk_l,0,dR_l)/a_l[0];
-            Jn_l[1] = Gamma_l[1];
-            Kn_l[1] = leftmid_D1(Gamma_l,1,dR_l);
-            Ln_l[1] = leftmid_D1(Epsilon_l,1,dR_l)/(r_l[1]*r_l[1]);
+            Jn[0] = Gamma[0];
+            Kn[0] = 0;
+            Ln[0] = alpha[0]*leftmost_D1(Phi_rk,0,dR)/a[0];
+            Jn[1] = Gamma[1];
+            Kn[1] = leftmid_D1(Gamma,1,dR);
+            Ln[1] = leftmid_D1(Epsilon,1,dR)/(r[1]*r[1]);
             //#pragma omp parallel for
-            for(int ir=2;ir<nR_l-2;ir++){
-                Jn_l[ir] = Gamma_l[ir];
-                Kn_l[ir] = centered_D1(Gamma_l,ir,dR_l);
-                Ln_l[ir] = centered_D1(Epsilon_l,ir,dR_l)/(r_l[ir]*r_l[ir]);
+            for(int ir=2;ir<nR-2;ir++){
+                Jn[ir] = Gamma[ir];
+                Kn[ir] = centered_D1(Gamma,ir,dR);
+                Ln[ir] = centered_D1(Epsilon,ir,dR)/(r[ir]*r[ir]);
             }
-            Jn_l[nR_l-2] = Gamma_l[nR_l-2];
-            Kn_l[nR_l-2] = rightmid_D1(Gamma_l,nR_l-2,dR_l);
-            Ln_l[nR_l-2] = rightmid_D1(Epsilon_l,nR_l-2,dR_l)/(r_l[nR_l-2]*r_l[nR_l-2]);
-            Jn_l[nR_l-1] = Gamma_l[nR_l-1];
-            Kn_l[nR_l-1] = -rightmost_D1(rPhi_l,4,dR_l)/r_l[nR_l-1];
-            Ln_l[nR_l-1] = -rightmost_D1( rPi_l,4,dR_l)/r_l[nR_l-1];
+            Jn[nR-2] = Gamma[nR-2];
+            Kn[nR-2] = rightmid_D1(Gamma,nR-2,dR);
+            Ln[nR-2] = rightmid_D1(Epsilon,nR-2,dR)/(r[nR-2]*r[nR-2]);
+            Jn[nR-1] = Gamma[nR-1];
+            Kn[nR-1] = -rightmost_D1(rPhi,4,dR)/r[nR-1];
+            Ln[nR-1] = -rightmost_D1( rPi,4,dR)/r[nR-1];
 
-            for(int ir=0;ir<nR_l;ir++){
-                Jsum_l[ir] += rk[n]*Jn_l[ir];
-                Ksum_l[ir] += rk[n]*Kn_l[ir];
-                Lsum_l[ir] += rk[n]*Ln_l[ir];
+            for(int ir=0;ir<nR;ir++){
+                Jsum[ir] += rk[n]*Jn[ir];
+                Ksum[ir] += rk[n]*Kn[ir];
+                Lsum[ir] += rk[n]*Ln[ir];
             }
         }
         
         //Calculate phi, Phi and Pi on next step
-        for(int ir=0;ir<nR_l;ir++){
-            phi_l[ir] += _6*dT_l*Jsum_l[ir];
-            Phi_l[ir] += _6*dT_l*Ksum_l[ir];
-             Pi_l[ir] += _6*dT_l*Lsum_l[ir];
+        for(int ir=0;ir<nR;ir++){
+            phi[ir] += _6*dT*Jsum[ir];
+            Phi[ir] += _6*dT*Ksum[ir];
+             Pi[ir] += _6*dT*Lsum[ir];
         }
     }
+    free(Beta);
+    free(Beta_p05);
+    free(Gamma);
+    free(Epsilon);
+    free(Phi_rk);
+    free(Pi_rk);
+    free(Jn);
+    free(Kn);
+    free(Ln);
+    free(Jsum);
+    free(Ksum);
+    free(Lsum);
 }
 
 double **initialize_subgrid(double fType,double *model_params,double initial_r, double final_r, double deltaR){
@@ -119,23 +157,35 @@ double **initialize_subgrid(double fType,double *model_params,double initial_r, 
     double deltaT = deltaR/5.;
     double *a     = malloc(sizeof(double)*nR);
     double *alpha = malloc(sizeof(double)*nR);
-    double *dR_p  = &deltaR;
-    double *dT_p  = &deltaT;
-    double *nR_p  = &nR_f;
-    double *ri_p  = &initial_r;
-    double *rf_p  = &final_r;
+    double *nR_p = malloc(sizeof(double));
+    double *dR_p = malloc(sizeof(double));
+    double *dT_p = malloc(sizeof(double));
+    double *ri_p = malloc(sizeof(double));
+    double *rf_p = malloc(sizeof(double));
+    dR_p[0] = deltaR;
+    dT_p[0] = deltaT;
+    nR_p[0] = nR_f;
+    ri_p[0] = initial_r;
+    rf_p[0] = final_r;
 
-    double *subgrid[10];
-    subgrid[0] = initial_field[0];
-    subgrid[1] = initial_field[1];
-    subgrid[2] = initial_field[2];
-    subgrid[3] = a;
-    subgrid[4] = alpha;
-    subgrid[5] = dR_p;
-    subgrid[6] = dT_p;
-    subgrid[7] = nR_p;
-    subgrid[8] = ri_p;
-    subgrid[9] = rf_p;
+    printf("nR: %d\n",nR);
+    printf("nR_f: %lf\n",nR_f);
+    printf("nR_pointer: %lf\n",*nR_p);
+    printf("dR_pointer: %lf\n",*dR_p);
+    printf("dT_pointer: %lf\n",*dT_p);
+
+    double **subgrid = malloc(sizeof(double*)*11);
+    subgrid[0]  = initial_field[0]; // r values of the grid
+    subgrid[1]  = initial_field[1]; // phi values of the grid
+    subgrid[2]  = initial_field[2]; // Phi values of the grid
+    subgrid[3]  = initial_field[3]; // Pi values of the grid
+    subgrid[4]  = a;     // a values of the grid
+    subgrid[5]  = alpha; // alpha values of the grid
+    subgrid[6]  = dR_p;  // deltaR of the grid (as pointer)
+    subgrid[7]  = dT_p;  // deltaT of the grid (as pointer)
+    subgrid[8]  = nR_p;  // number of points in the grid (as pointer)
+    subgrid[9]  = ri_p;  // min r of the grid (as pointer)
+    subgrid[10] = rf_p;  // max r of the grid (as pointer)
 
     return subgrid;
 }
@@ -147,8 +197,30 @@ double **variable_iteration(int fType,double *model_params,double deltaR,int max
     double deltaT = deltaR/5.;
     double mass;
 
+    double max_a = pow(TOLERANCE,-0.5); // Max value of 'a' according to g^rr tolerance
+    bh_mass = 0;
+    bh_radius = 0;
+    is_bh = false;
+    last_iteration = iterations;
+
+    //Initialize main grid
     double **grid0;
     grid0 = initialize_subgrid(fType,model_params,0.0,maxR,deltaR);
+    all_subgrids[0] = grid0;
+
+    //Initialize all subgrids
+    double **grid1;
+    grid1 = initialize_subgrid(fType,model_params,0.5*maxR,maxR,deltaR);
+    all_subgrids[1] = grid1;
+    double **grid2;
+    grid2 = initialize_subgrid(fType,model_params,0.25*maxR,0.5*(maxR+deltaR),0.5*deltaR);
+    all_subgrids[2] = grid2;
+    double **grid3;
+    grid3 = initialize_subgrid(fType,model_params,0.125*maxR,0.25*(maxR+deltaR),0.25*deltaR);
+    all_subgrids[3] = grid3;
+    double **grid4;
+    grid4 = initialize_subgrid(fType,model_params,0.0,0.125*(maxR+deltaR),0.125*deltaR);
+    all_subgrids[4] = grid4;
 
     double temp;
     double *temp_pointer;
@@ -174,12 +246,28 @@ double **variable_iteration(int fType,double *model_params,double deltaR,int max
     double** hist = malloc(sizeof(double*)*7);
     int save_count = save_iteration;
 
+    //Calculate the metric before starting the iteration
+    double *Beta = malloc(sizeof(double)*nR);
+    double *Beta1_2 = malloc(sizeof(double)*nR);
+    double *r, *phi, *Phi, *Pi, *a, *alpha;
+    r     = grid0[0];
+    phi   = grid0[1];
+    Phi   = grid0[2];
+    Pi    = grid0[3];
+    a     = grid0[4];
+    alpha = grid0[5];
     for(int ir=0;ir<nR;ir++){
-        a[ir] = 1.;
-        alpha[ir] = 1.;
+        Beta[ir] = 2.0*PI*r[ir]*((Pi[ir])*(Pi[ir]) + (Phi[ir])*(Phi[ir]));
     }
-
-    printf("print1\n");
+    for(int ir=0;ir<nR-1;ir++){
+        Beta1_2[ir] = 0.5*PI*(r[ir]+0.5*deltaR)*(
+            ( Pi[ir] + Pi[ir+1])*( Pi[ir] + Pi[ir+1]) +
+            (Phi[ir] +Phi[ir+1])*(Phi[ir] +Phi[ir+1]));
+    }
+    metric_iteration(1.0,1.0,Beta, Beta1_2, a, alpha, r, nR, deltaR);
+    free(Beta);
+    free(Beta1_2);
+    printf("iteration stato\n");
     for(int i=0;i<iterations;i++){
 
         if(SAVE_MODE == 0){
@@ -187,15 +275,9 @@ double **variable_iteration(int fType,double *model_params,double deltaR,int max
             if(save_count == save_iteration){
                 //printf("iteration %d\n",i);
                 if(MASS){
-                    mass = 0;
-                    for(int ir=0;ir<nR;ir++){
-                        mass += 2.0*PI*(Phi[ir]*Phi[ir] +Pi[ir]*Pi[ir])*r[ir]*r[ir]/(a[ir]*a[ir])*deltaR;
-                    }
-                    Mhistory[i/save_iteration] = mass;
+                    Mhistory[i/save_iteration] = get_mass(r,Phi,Pi,a,maxR,deltaR);;
                 }
                 for(int ir=0;ir<(nR/SAVE_RES);ir++){
-                    //Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]*Phi[ir*SAVE_RES]*sqrt(2*PI)/a[ir*SAVE_RES];
-                    //Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]* Pi[ir*SAVE_RES]*sqrt(2*PI)/a[ir*SAVE_RES];
                     Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =   Phi[ir*SAVE_RES];
                     Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =    Pi[ir*SAVE_RES];
                     Fhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =   phi[ir*SAVE_RES];
@@ -213,11 +295,7 @@ double **variable_iteration(int fType,double *model_params,double deltaR,int max
                 int save_iter = i - FIRST_ITERATION;
                 //printf("iteration %d\n",i);
                 if(MASS){
-                    mass = 0;
-                    for(int ir=0;ir<nR;ir++){
-                        mass += 2.0*PI*(Phi[ir]*Phi[ir] +Pi[ir]*Pi[ir])*r[ir]*r[ir]/(a[ir]*a[ir])*deltaR;
-                    }
-                    Mhistory[save_iter] = mass;
+                    Mhistory[save_iter] = get_mass(r,Phi,Pi,a,maxR,deltaR);
                 }
                 for(int ir=0;ir<saveNR;ir++){
                     Xhistory[save_iter*saveNR + ir] =   Phi[noSaveNR + ir];
@@ -228,7 +306,24 @@ double **variable_iteration(int fType,double *model_params,double deltaR,int max
                 }
             }
         }
-        integration_l(r,phi,Phi,Pi,a,alpha,nR,deltaR,1,deltaT);
+
+        printf("print1\n");
+        //Check if a collapse has happened if a > 1/TOLERANCE^2
+        for(int ir=0;ir<nR;ir++){
+            if(a[ir]>max_a){
+                bh_radius = r[ir];
+                bh_mass = get_mass(r,Phi,Pi,a,bh_radius,deltaR);
+                last_iteration = i;
+                is_bh = true;
+                break;
+            }
+        }
+        if(is_bh) break;
+        printf("print2\n");
+
+        //Integrate from smallest to bigger grid
+        integration_l(grid0,1.0,1.0,1);
+        printf("print3\n");
     }
     if(SAVE_MODE == 0){
         for(int ir=0;ir<(nR/SAVE_RES);ir++)
@@ -283,25 +378,19 @@ int main(int argc, char* argv[]){
     if((argc>8) && atoi(argv[8])) iterations = atoi(argv[8]);
     printf("Total iterations: %d\n",iterations);
 
-    initial_conditions = initialize_field(fType,model_parameters,deltaR,0.0,maxR);
-    r = initial_conditions[0];
-    phi = initial_conditions[1];
-    Phi = initial_conditions[2];
-    Pi = initial_conditions[3];
-
     //Pass initial conditions to iteration
     if((argc>9) && atoi(argv[9])) omp_set_num_threads(atoi(argv[9]));
     time_t initTime = time(NULL);
-    hist = variable_iteration(r,phi,Phi,Pi,deltaR,maxR,iterations,SAVE_ITERATION,epsilon);
+    hist = variable_iteration(fType, model_parameters,deltaR,maxR,iterations,SAVE_ITERATION);
     time_t finalTime = time(NULL);
     int nP = omp_get_max_threads();
     time_t timeDelta = (finalTime-initTime);
 
     //Print simulation history to a file
     if(SAVE_MODE == 0)
-        print_data(hist,fType,model_parameters,iterations,maxR,deltaR,nP,timeDelta,epsilon);
+        print_data(hist,fType,model_parameters,last_iteration,maxR,deltaR,nP,timeDelta);
     else if(SAVE_MODE == 1){
-        print_data(hist,fType,model_parameters,iterations-FIRST_ITERATION,maxR-MIN_R,deltaR,nP,timeDelta,epsilon);
+        print_data(hist,fType,model_parameters,last_iteration-FIRST_ITERATION,maxR-MIN_R,deltaR,nP,timeDelta);
         }
     printf("Finished, total time: %lds\n", timeDelta);
 }

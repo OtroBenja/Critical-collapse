@@ -4,7 +4,7 @@
 #include "derivatives.h"
 #include "integration.h"
 
-double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,double maxR,int iterations,int save_iteration,double epsilon){
+double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,double maxR,int iterations,int save_iteration){
 
     int nR = (int)(maxR/deltaR);
     int noSaveNR = (int)(MIN_R/deltaR);
@@ -80,7 +80,7 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,do
             ( Pi[ir] + Pi[ir+1])*( Pi[ir] + Pi[ir+1]) +
             (Phi[ir] +Phi[ir+1])*(Phi[ir] +Phi[ir+1]));
     }
-    metric_iteration(1.0,1.0,Beta, Beta1_2, a, alpha, r, nR, deltaR);
+    metric_iteration(1.0,1.0,Beta, Beta1_2, a, alpha, r, nR, deltaR, true);
 
     //Start the iteration
     for(int i=0;i<iterations;i++){
@@ -157,7 +157,7 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,do
                     (Phi_rk[ir] +Phi_rk[ir+1])*(Phi_rk[ir] +Phi_rk[ir+1]));
             }
             //First iterate the metric for this Runge-Kutta step
-            metric_iteration(1.0,1.0,Beta, Beta1_2, a, alpha, r, nR, deltaR);
+            metric_iteration(1.0,1.0,Beta, Beta1_2, a, alpha, r, nR, deltaR, true);
             for(int ir=0;ir<nR;ir++){
                 Gamma[ir]   =        alpha[ir]*( Pi_rk[ir])/(a[ir]);
                 Epsilon[ir] = r2[ir]*alpha[ir]*(Phi_rk[ir])/(a[ir]);

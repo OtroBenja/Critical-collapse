@@ -50,7 +50,7 @@ double** initialize_field(int fType,double* model_parameters,double deltaR,doubl
         Pi[i] = 0;
     }
 
-    /*
+    
     //Set initial Pi to move left
     for(int i=0;i<nR;i++){
         rphi[i] = r[i]*phi[i];
@@ -64,7 +64,7 @@ double** initialize_field(int fType,double* model_parameters,double deltaR,doubl
     }
     Pi[nR-2] = rightmid_D1(rphi, nR-2, deltaR)/r[nR-2];
     Pi[nR-1] = rightmost_D1(rphi, nR-1, deltaR)/r[nR-1];
-    */
+    
 
     free(rphi);
         

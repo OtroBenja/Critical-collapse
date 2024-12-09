@@ -67,6 +67,13 @@ void print_data(double **hist,int fType,double *model_parameters,int iterations,
         }
         fprintf(data,"%lf\n",hist[1][i*printR+printR-1]);
     }
+    //Print mass
+    for(int i=0;i<print_iterations;i++){
+        for(int ir=0;ir<(printR-1);ir++){
+            fprintf(data,"%lf,",hist[6][i*printR+ir]);
+        }
+        fprintf(data,"%lf\n",hist[6][i*printR+printR-1]);
+    }
     //Print Phi
     for(int i=0;i<print_iterations;i++){
         for(int ir=0;ir<(printR-1);ir++){

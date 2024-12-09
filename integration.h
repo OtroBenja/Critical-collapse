@@ -2,11 +2,21 @@
 
 #include "constants.h"
 
-double get_mass(double *r, double *Phi, double *Pi, double *a, double maxR, double deltaR){
+double get_single_mass(double *r, double *Phi, double *Pi, double *a, double maxR, double deltaR){
     double mass = 0;
     int nR = (int)(maxR/deltaR);
     for(int ir=0;ir<nR;ir++){
         mass += 2.0*PI*(Phi[ir]*Phi[ir] +Pi[ir]*Pi[ir])*r[ir]*r[ir]/(a[ir]*a[ir])*deltaR;
+    }
+    return mass;
+}
+
+double *get_mass(double *r, double *Phi, double *Pi, double *a, double maxR, double deltaR){
+    int nR = (int)(maxR/deltaR);
+    double *mass = malloc(sizeof(double)*nR);
+    mass[0] = 2.0*PI*(Phi[0]*Phi[0] +Pi[0]*Pi[0])*r[0]*r[0]/(a[0]*a[0])*deltaR;
+    for(int ir=1;ir<nR;ir++){
+        mass[ir] = mass[ir-1] + 2.0*PI*(Phi[ir]*Phi[ir] +Pi[ir]*Pi[ir])*r[ir]*r[ir]/(a[ir]*a[ir])*deltaR;
     }
     return mass;
 }

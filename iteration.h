@@ -10,7 +10,7 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,do
     int noSaveNR = (int)(MIN_R/deltaR);
     int saveNR = (int)((maxR-MIN_R)/deltaR);
     double deltaT = deltaR/5.;
-    double mass;
+    double* mass;
     double max_a = pow(TOLERANCE,-0.5); // Max value of 'a' according to g^rr tolerance
     bh_mass = 0;
     bh_radius = 0;
@@ -43,26 +43,24 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,do
 
     double temp;
     double *temp_pointer;
-    double *Rhistory, *Fhistory, *Xhistory, *Yhistory, *Ahistory, *Bhistory, *Mhistory;
+
+    int history_size;
+    float *Rhistory, *Fhistory, *Xhistory, *Yhistory, *Ahistory, *Bhistory, *Mhistory;
     if(SAVE_MODE == 0){
-        Rhistory = malloc(sizeof(double)*(nR/SAVE_RES));
-        Fhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
-        Xhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
-        Yhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
-        Ahistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
-        Bhistory = malloc(sizeof(double)*(nR/SAVE_RES)*(iterations/save_iteration));
-        Mhistory = malloc(sizeof(double)*(iterations/save_iteration));
+        Rhistory = malloc(sizeof(float)*(nR/SAVE_RES));
+        history_size = sizeof(float)*(nR/SAVE_RES)*(iterations/save_iteration);
     }
     else if(SAVE_MODE == 1){
-        Rhistory = malloc(sizeof(double)*saveNR);
-        Fhistory = malloc(sizeof(double)*saveNR*(iterations-FIRST_ITERATION));
-        Xhistory = malloc(sizeof(double)*saveNR*(iterations-FIRST_ITERATION));
-        Yhistory = malloc(sizeof(double)*saveNR*(iterations-FIRST_ITERATION));
-        Ahistory = malloc(sizeof(double)*saveNR*(iterations-FIRST_ITERATION));
-        Bhistory = malloc(sizeof(double)*saveNR*(iterations-FIRST_ITERATION));
-        Mhistory = malloc(sizeof(double)*(iterations-FIRST_ITERATION));
+        Rhistory = malloc(sizeof(float)*saveNR);
+        history_size = sizeof(float)*saveNR*(iterations-FIRST_ITERATION);
     }
-    double** hist = malloc(sizeof(double*)*7);
+    Fhistory = malloc(history_size);
+    Xhistory = malloc(history_size);
+    Yhistory = malloc(history_size);
+    Ahistory = malloc(history_size);
+    Bhistory = malloc(history_size);
+    Mhistory = malloc(history_size);
+    float** hist = malloc(sizeof(float*)*7);
     int save_count = save_iteration;
 
     for(int ir=0;ir<nR;ir++){
@@ -89,18 +87,16 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,do
             //Save values of Phi, Pi, phi, a and alpha
             if(save_count == save_iteration){
                 //printf("iteration %d\n",i);
-                if(MASS){
-                    Mhistory[i/save_iteration] = get_mass(r,Phi,Pi,a,maxR,deltaR);;
-                }
+                mass = get_mass(r,Phi,Pi,a,maxR,deltaR);
                 for(int ir=0;ir<(nR/SAVE_RES);ir++){
-                    //Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]*Phi[ir*SAVE_RES]*sqrt(2*PI)/a[ir*SAVE_RES];
-                    //Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = r[ir*SAVE_RES]* Pi[ir*SAVE_RES]*sqrt(2*PI)/a[ir*SAVE_RES];
-                    Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =   Phi[ir*SAVE_RES];
-                    Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =    Pi[ir*SAVE_RES];
-                    Fhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =   phi[ir*SAVE_RES];
-                    Ahistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =     a[ir*SAVE_RES];
-                    Bhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = alpha[ir*SAVE_RES];
+                    Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = (float)  Phi[ir*SAVE_RES];
+                    Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = (float)   Pi[ir*SAVE_RES];
+                    Fhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = (float)  phi[ir*SAVE_RES];
+                    Ahistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = (float)    a[ir*SAVE_RES];
+                    Bhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = (float)alpha[ir*SAVE_RES];
+                    Mhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = (float) mass[ir*SAVE_RES];
                 }
+                free(mass);
                 save_count=0;
             }
             save_count+=1;
@@ -111,16 +107,16 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,do
             if(i >= FIRST_ITERATION){
                 int save_iter = i - FIRST_ITERATION;
                 //printf("iteration %d\n",i);
-                if(MASS){
-                    Mhistory[save_iter] = get_mass(r,Phi,Pi,a,maxR,deltaR);
-                }
+                mass = get_mass(r,Phi,Pi,a,maxR,deltaR);
                 for(int ir=0;ir<saveNR;ir++){
-                    Xhistory[save_iter*saveNR + ir] =   Phi[noSaveNR + ir];
-                    Yhistory[save_iter*saveNR + ir] =    Pi[noSaveNR + ir];
-                    Fhistory[save_iter*saveNR + ir] =   phi[noSaveNR + ir];
-                    Ahistory[save_iter*saveNR + ir] =     a[noSaveNR + ir];
-                    Bhistory[save_iter*saveNR + ir] = alpha[noSaveNR + ir];
+                    Xhistory[save_iter*saveNR + ir] = (float)  Phi[noSaveNR + ir];
+                    Yhistory[save_iter*saveNR + ir] = (float)   Pi[noSaveNR + ir];
+                    Fhistory[save_iter*saveNR + ir] = (float)  phi[noSaveNR + ir];
+                    Ahistory[save_iter*saveNR + ir] = (float)    a[noSaveNR + ir];
+                    Bhistory[save_iter*saveNR + ir] = (float)alpha[noSaveNR + ir];
+                    Mhistory[save_iter*saveNR + ir] = (float) mass[noSaveNR + ir];
                 }
+                free(mass);
             }
         }
 
@@ -128,7 +124,8 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,do
         for(int ir=0;ir<nR;ir++){
             if(a[ir]>max_a){
                 bh_radius = r[ir];
-                bh_mass = get_mass(r,Phi,Pi,a,bh_radius,deltaR);
+                mass = get_mass(r,Phi,Pi,a,bh_radius,deltaR);
+                bh_mass = mass[ir];
                 last_iteration = i;
                 is_bh = true;
                 break;

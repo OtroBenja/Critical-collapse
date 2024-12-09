@@ -30,7 +30,7 @@ void full_metric(int level, int n_levels){
     double alpha0 = 1.0;
     double *a;
     double *alpha;
-    for (i=1;i<n_levels+1;i++){
+    for (int i=1;i<n_levels+1;i++){
         a = all_subgrids[i]
         = ;
     }
@@ -90,7 +90,7 @@ void integration_l(double **grid_l, double a0, double alpha0, int nT){
                     (Phi_rk[ir] +Phi_rk[ir+1])*(Phi_rk[ir] +Phi_rk[ir+1]));
             }
             //First iterate the metric for this Runge-Kutta step
-            metric_iteration(a0, alpha0, Beta, Beta_p05, a, alpha, r, nR, dR);
+            metric_iteration(a0, alpha0, Beta, Beta_p05, a, alpha, r, nR, dR, true);
 
             for(int ir=0;ir<nR;ir++){
                 Gamma[ir]   =                 alpha[ir]*( Pi_rk[ir])/(a[ir]);
@@ -264,7 +264,7 @@ double **variable_iteration(int fType,double *model_params,double deltaR,int max
             ( Pi[ir] + Pi[ir+1])*( Pi[ir] + Pi[ir+1]) +
             (Phi[ir] +Phi[ir+1])*(Phi[ir] +Phi[ir+1]));
     }
-    metric_iteration(1.0,1.0,Beta, Beta1_2, a, alpha, r, nR, deltaR);
+    metric_iteration(1.0,1.0,Beta, Beta1_2, a, alpha, r, nR, deltaR, true);
     free(Beta);
     free(Beta1_2);
     printf("iteration stato\n");
@@ -394,7 +394,4 @@ int main(int argc, char* argv[]){
         }
     printf("Finished, total time: %lds\n", timeDelta);
 }
-
-
-
 

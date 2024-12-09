@@ -14,7 +14,7 @@ void print_mass(double *MassHist,struct tm time_data,int print_iterations){
     fclose(data);
 }
 
-void print_data(double **hist,int fType,double *model_parameters,int iterations,double maxR,double deltaR,int nP,time_t totalTime,double epsilon){
+void print_data(double **hist,int fType,double *model_parameters,int iterations,double maxR,double deltaR,int nP,time_t totalTime){
     int print_iterations, printR;
     if(SAVE_MODE == 0){
         print_iterations = iterations/SAVE_ITERATION;

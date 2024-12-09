@@ -72,9 +72,9 @@ int main(int argc, char* argv[]){
 
     //Print simulation history to a file
     if(SAVE_MODE == 0)
-        print_data(hist,fType,model_parameters,last_iteration,maxR,deltaR,nP,timeDelta,epsilon);
+        print_data(hist,fType,model_parameters,last_iteration,maxR,deltaR,nP,timeDelta);
     else if(SAVE_MODE == 1){
-        print_data(hist,fType,model_parameters,last_iteration-FIRST_ITERATION,maxR-MIN_R,deltaR,nP,timeDelta,epsilon);
+        print_data(hist,fType,model_parameters,last_iteration-FIRST_ITERATION,maxR-MIN_R,deltaR,nP,timeDelta);
         }
     printf("Finished, total time: %lds\n", timeDelta);
 }

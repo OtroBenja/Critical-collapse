@@ -21,6 +21,11 @@ double *get_mass(double *r, double *Phi, double *Pi, double *a, double maxR, dou
     return mass;
 }
 
+#if METRIC == 0
+void metric_iteration(double a0,double alpha0,double* Beta, double* Beta1_2, double* a, double* alpha, double* r, int nR, double deltaR, bool normalize){}
+#endif
+
+#if METRIC == 1
 void metric_iteration(double a0,double alpha0,double* Beta, double* Beta1_2, double* a, double* alpha, double* r, int nR, double deltaR, bool normalize){
     
     double m1, n1, m2, n2, m3, n3, m4, n4, norm;
@@ -49,3 +54,4 @@ void metric_iteration(double a0,double alpha0,double* Beta, double* Beta1_2, dou
         alpha[ir] = alpha[ir]*norm;
     }
 }
+#endif

@@ -4,7 +4,7 @@
 #include "derivatives.h"
 #include "integration.h"
 
-double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,double maxR,int iterations,int save_iteration){
+float** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,double maxR,int iterations,int save_iteration){
 
     int nR = (int)(maxR/deltaR);
     int noSaveNR = (int)(MIN_R/deltaR);
@@ -19,8 +19,6 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,do
 
     double *a = malloc(sizeof(double)*nR);
     double *alpha = malloc(sizeof(double)*nR);
-    double *Beta = malloc(sizeof(double)*nR);
-    double *Beta1_2 = malloc(sizeof(double)*nR);
     double *Gamma = malloc(sizeof(double)*nR);
     double *Epsilon = malloc(sizeof(double)*nR);
     double *Phi_rk = malloc(sizeof(double)*nR);
@@ -70,6 +68,9 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,do
     }
 
     //Calculate the metric before starting the iteration
+    #if METRIC == 1
+    double *Beta = malloc(sizeof(double)*nR);
+    double *Beta1_2 = malloc(sizeof(double)*nR);
     for(int ir=0;ir<nR;ir++){
         Beta[ir] = 2.0*PI*r[ir]*((Pi[ir])*(Pi[ir]) + (Phi[ir])*(Phi[ir]));
     }
@@ -79,6 +80,7 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,do
             (Phi[ir] +Phi[ir+1])*(Phi[ir] +Phi[ir+1]));
     }
     metric_iteration(1.0,1.0,Beta, Beta1_2, a, alpha, r, nR, deltaR, true);
+    #endif
 
     //Start the iteration
     for(int i=0;i<iterations;i++){
@@ -143,9 +145,13 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,do
         }
        //calculate jn, kn and ln
         for(int n=0;n<4;n++){
+
             for(int ir=0;ir<nR;ir++){
                 Phi_rk[ir] = Phi[ir]+_rk[n]*deltaT*k_n[ir];
                  Pi_rk[ir] =  Pi[ir]+_rk[n]*deltaT*l_n[ir];
+            }
+            #if METRIC == 1
+            for(int ir=0;ir<nR;ir++){
                 Beta[ir] = 2.0*PI*r[ir]*((Pi_rk[ir])*(Pi_rk[ir]) + (Phi_rk[ir])*(Phi_rk[ir]));
             }
             for(int ir=0;ir<nR-1;ir++){
@@ -155,6 +161,8 @@ double** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,do
             }
             //First iterate the metric for this Runge-Kutta step
             metric_iteration(1.0,1.0,Beta, Beta1_2, a, alpha, r, nR, deltaR, true);
+            #endif
+
             for(int ir=0;ir<nR;ir++){
                 Gamma[ir]   =        alpha[ir]*( Pi_rk[ir])/(a[ir]);
                 Epsilon[ir] = r2[ir]*alpha[ir]*(Phi_rk[ir])/(a[ir]);

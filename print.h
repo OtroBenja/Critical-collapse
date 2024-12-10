@@ -14,7 +14,7 @@ void print_mass(double *MassHist,struct tm time_data,int print_iterations){
     fclose(data);
 }
 
-void print_data(double **hist,int fType,double *model_parameters,int iterations,double maxR,double deltaR,int nP,time_t totalTime){
+void print_data(float **hist,int fType,double *model_parameters,int iterations,double maxR,double deltaR,int nP,time_t totalTime){
     int print_iterations, printR;
     if(SAVE_MODE == 0){
         print_iterations = iterations/SAVE_ITERATION;
@@ -30,7 +30,7 @@ void print_data(double **hist,int fType,double *model_parameters,int iterations,
     //Add time to filename
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
-    if(MASS) print_mass(hist[6],tm,print_iterations);
+    //if(MASS) print_mass(hist[6],tm,print_iterations);
     char fileName[50];
     snprintf(fileName, sizeof(fileName), "Output_%02d%02d%02d.dat", tm.tm_hour, tm.tm_min, tm.tm_sec);
     FILE* data = fopen(fileName,"w");

@@ -45,11 +45,11 @@ int main(int argc, char* argv[]){
     
     //Define simulation limits
     double deltaR = 0.01;
-    if((argc>6) && atof(argv[5])) deltaR = atof(argv[5]);
+    if((argc>5) && atof(argv[5])) deltaR = atof(argv[5]);
     double maxR = 50;
-    if((argc>7) && atoi(argv[6])) maxR = atof(argv[6]);
+    if((argc>6) && atoi(argv[6])) maxR = atof(argv[6]);
     int iterations = ITERATIONS;
-    if((argc>8) && atoi(argv[7])) iterations = atoi(argv[7]);
+    if((argc>7) && atoi(argv[7])) iterations = atoi(argv[7]);
     printf("Total iterations: %d\n",iterations);
 
     initial_conditions = initialize_field(fType,model_parameters,deltaR,0.0,maxR);
@@ -59,7 +59,7 @@ int main(int argc, char* argv[]){
     Pi = initial_conditions[3];
     //Pass initial conditions to iteration
     omp_set_num_threads(1);
-    if((argc>9) && atoi(argv[8])) omp_set_num_threads(atoi(argv[8]));
+    if((argc>8) && atoi(argv[8])) omp_set_num_threads(atoi(argv[8]));
     time_t initTime = time(NULL);
     hist = iteration(r,phi,Phi,Pi,deltaR,maxR,iterations,SAVE_ITERATION);
     time_t finalTime = time(NULL);

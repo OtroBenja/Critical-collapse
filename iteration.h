@@ -126,7 +126,7 @@ float** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,dou
         for(int ir=0;ir<nR;ir++){
             if(a[ir]>max_a){
                 bh_radius = r[ir];
-                mass = get_mass(r,Phi,Pi,a,bh_radius,deltaR);
+                mass = get_mass(r,Phi,Pi,a,maxR,deltaR);
                 bh_mass = mass[ir];
                 last_iteration = i;
                 is_bh = true;

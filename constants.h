@@ -1,7 +1,7 @@
 #pragma once
 
 #define MASS 1 // 1 = Make a mass history file; 0 = Don't
-#define METRIC 0 // 0 = minkowski; 1 = choptuik
+#define METRIC 1 // 0 = minkowski; 1 = choptuik
 #define SAVE_MODE 0 // 0 = save uniformly on every SAVE_RES and SAVE_ITERATION ; 1 = save all points after FIRST_ITERATION and with r > MIN_R
 #define SAVE_RES 100
 #define SAVE_ITERATION 500

@@ -47,11 +47,11 @@ void print_data(float **hist,int fType,double *model_parameters,int iterations,d
     else if(fType == 3) fprintf(data,"Function type: Linear\n");
     fprintf(data,"p0: %.10e\n",p0);
     fprintf(data,"r0: %lf\n",r0);
-    fprintf(data,"d: %lfe\n",d);
-    fprintf(data,"Final BH radius: %lf\n",bh_radius);
-    fprintf(data,"Final BH mass: %lf\n",bh_mass);
+    fprintf(data,"d: %lf\n",d);
     fprintf(data,"R step size: %lf\n",deltaR);
     fprintf(data,"Maximum R: %lf\n",maxR);
+    fprintf(data,"Final BH radius: %lf\n",bh_radius);
+    fprintf(data,"Final BH mass: %lf\n",bh_mass);
     fprintf(data,"Iterations: %d\n",iterations);
     fprintf(data,"Number of threads: %d\n",nP);
     fprintf(data,"Total simulation time: %ld\n",totalTime);

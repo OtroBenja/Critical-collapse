@@ -30,10 +30,6 @@ double** initialize_field(int fType,double* model_parameters,double deltaR,doubl
         for(int i=0;i<nR;i++)
             phi[i] = p0;
     }
-    if(fType==3){
-        for(int i=0;i<nR;i++)
-            phi[i] = p0*r[i];
-    }
 
     //Calculate initial Phi
     Phi[0] = leftmost_D1(phi, 0, deltaR);

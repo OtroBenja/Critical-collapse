@@ -24,15 +24,48 @@ double **all_subgrids[10];
 #include "integration.h"
 #include "print.h"
 
-
+//Function to integrate the whole metric
 void full_metric(int level, int n_levels){
     double a0 = 1.0;
     double alpha0 = 1.0;
+    double *r;
+    double *Phi;
+    double *Pi;
     double *a;
     double *alpha;
+    double *Beta;
+    double *Beta_p05;
+    int deltaR;
+    int nR;
+    //Calculate the full metric (without normalization)
     for (int i=1;i<n_levels+1;i++){
-        a = all_subgrids[i]
-        = ;
+        r = all_subgrids[i][0];
+        Phi = all_subgrids[i][2];
+        Pi  = all_subgrids[i][3];
+        a     = all_subgrids[i][4];
+        alpha = all_subgrids[i][5];
+        nR = (int)(*(all_subgrids[i][8]));
+        deltaR = *(all_subgrids[i][6]);
+        for(int ir=0;ir<nR-1;ir++){
+            Beta[ir] = 2.0*PI*r[ir]*((Pi[ir])*(Pi[ir]) + (Phi[ir])*(Phi[ir]));
+            Beta_p05[ir] = 0.5*PI*(r[ir]+0.5*deltaR)*(
+                ( Pi[ir] + Pi[ir+1])*( Pi[ir] + Pi[ir+1]) +
+                (Phi[ir] +Phi[ir+1])*(Phi[ir] +Phi[ir+1]));
+        }    
+        Beta[nR-1] = 2.0*PI*r[nR-1]*((Pi[nR-1])*(Pi[nR-1]) + (Phi[nR-1])*(Phi[nR-1]));
+
+        metric_iteration(a0, alpha0, Beta, Beta_p05, a, alpha, r, nR, deltaR, false);
+        a0     = a[nR-1];
+        alpha0 = alpha[nR-1];
+    }
+    //Normalize the metric
+    double norm = 1.0/(a0*alpha0);
+    for (int i=1;i<n_levels+1;i++){
+        alpha = all_subgrids[i][5];
+        nR = (int)(*(all_subgrids[i][8]));
+        for(int ir=0;ir<nR;ir++){
+            alpha[ir] = alpha[ir]*norm;
+        }
     }
 }
 
@@ -275,7 +308,7 @@ double **variable_iteration(int fType,double *model_params,double deltaR,int max
             if(save_count == save_iteration){
                 //printf("iteration %d\n",i);
                 if(MASS){
-                    Mhistory[i/save_iteration] = get_mass(r,Phi,Pi,a,maxR,deltaR);;
+                    Mhistory[i/save_iteration] = get_mass(r,Phi,Pi,a,maxR,deltaR);
                 }
                 for(int ir=0;ir<(nR/SAVE_RES);ir++){
                     Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =   Phi[ir*SAVE_RES];

@@ -69,6 +69,7 @@ void full_metric(int level, int n_levels){
     }
 }
 
+//Iterate on subgrid l, nT times
 void integration_l(double **grid_l, double a0, double alpha0, int nT){
     double  rk[4] = {1.0,2.0,2.0,1.0};
     double _rk[4] = {1.0,0.5,0.5,1.0};
@@ -123,7 +124,7 @@ void integration_l(double **grid_l, double a0, double alpha0, int nT){
                     (Phi_rk[ir] +Phi_rk[ir+1])*(Phi_rk[ir] +Phi_rk[ir+1]));
             }
             //First iterate the metric for this Runge-Kutta step
-            metric_iteration(a0, alpha0, Beta, Beta_p05, a, alpha, r, nR, dR, true);
+            metric_iteration(a0, alpha0, Beta, Beta_p05, a, alpha, r, nR, dR, norm_global);
 
             for(int ir=0;ir<nR;ir++){
                 Gamma[ir]   =                 alpha[ir]*( Pi_rk[ir])/(a[ir]);
@@ -223,12 +224,12 @@ double **initialize_subgrid(double fType,double *model_params,double initial_r, 
     return subgrid;
 }
 
-double **variable_iteration(int fType,double *model_params,double deltaR,int maxR,int iterations,int save_iteration){
+double **variable_iteration(int fType,double *model_params,double deltaR,double maxR,int iterations,int save_iteration){
     int noSaveNR = MIN_R/deltaR;
     int nR = (int)(maxR/deltaR);
     int saveNR = (maxR-MIN_R)/deltaR;
     double deltaT = deltaR/5.;
-    double mass;
+    double *mass;
 
     double max_a = pow(TOLERANCE,-0.5); // Max value of 'a' according to g^rr tolerance
     bh_mass = 0;
@@ -306,16 +307,14 @@ double **variable_iteration(int fType,double *model_params,double deltaR,int max
         if(SAVE_MODE == 0){
             //Save values of Phi, Pi, phi, a and alpha
             if(save_count == save_iteration){
-                //printf("iteration %d\n",i);
-                if(MASS){
-                    Mhistory[i/save_iteration] = get_mass(r,Phi,Pi,a,maxR,deltaR);
-                }
+                mass = get_mass(r,Phi,Pi,a,maxR,deltaR);
                 for(int ir=0;ir<(nR/SAVE_RES);ir++){
-                    Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =   Phi[ir*SAVE_RES];
-                    Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =    Pi[ir*SAVE_RES];
-                    Fhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =   phi[ir*SAVE_RES];
-                    Ahistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] =     a[ir*SAVE_RES];
-                    Bhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = alpha[ir*SAVE_RES];
+                    Xhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = (float)  Phi[ir*SAVE_RES];
+                    Yhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = (float)   Pi[ir*SAVE_RES];
+                    Fhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = (float)  phi[ir*SAVE_RES];
+                    Ahistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = (float)    a[ir*SAVE_RES];
+                    Bhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = (float)alpha[ir*SAVE_RES];
+                    Mhistory[(i/save_iteration)*(nR/SAVE_RES)+(ir)] = (float) mass[ir*SAVE_RES];
                 }
                 save_count=0;
             }
@@ -326,16 +325,14 @@ double **variable_iteration(int fType,double *model_params,double deltaR,int max
             //Save values of Phi, Pi, phi, a and alpha
             if(i >= FIRST_ITERATION){
                 int save_iter = i - FIRST_ITERATION;
-                //printf("iteration %d\n",i);
-                if(MASS){
-                    Mhistory[save_iter] = get_mass(r,Phi,Pi,a,maxR,deltaR);
-                }
+                mass = get_mass(r,Phi,Pi,a,maxR,deltaR);
                 for(int ir=0;ir<saveNR;ir++){
-                    Xhistory[save_iter*saveNR + ir] =   Phi[noSaveNR + ir];
-                    Yhistory[save_iter*saveNR + ir] =    Pi[noSaveNR + ir];
-                    Fhistory[save_iter*saveNR + ir] =   phi[noSaveNR + ir];
-                    Ahistory[save_iter*saveNR + ir] =     a[noSaveNR + ir];
-                    Bhistory[save_iter*saveNR + ir] = alpha[noSaveNR + ir];
+                    Xhistory[save_iter*saveNR + ir] = (float)  Phi[noSaveNR + ir];
+                    Yhistory[save_iter*saveNR + ir] = (float)   Pi[noSaveNR + ir];
+                    Fhistory[save_iter*saveNR + ir] = (float)  phi[noSaveNR + ir];
+                    Ahistory[save_iter*saveNR + ir] = (float)    a[noSaveNR + ir];
+                    Bhistory[save_iter*saveNR + ir] = (float)alpha[noSaveNR + ir];
+                    Mhistory[save_iter*saveNR + ir] = (float) mass[noSaveNR + ir];
                 }
             }
         }
@@ -345,7 +342,8 @@ double **variable_iteration(int fType,double *model_params,double deltaR,int max
         for(int ir=0;ir<nR;ir++){
             if(a[ir]>max_a){
                 bh_radius = r[ir];
-                bh_mass = get_mass(r,Phi,Pi,a,bh_radius,deltaR);
+                mass = get_mass(r,Phi,Pi,a,maxR,deltaR);
+                bh_mass = mass[ir];
                 last_iteration = i;
                 is_bh = true;
                 break;

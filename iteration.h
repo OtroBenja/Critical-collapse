@@ -160,7 +160,7 @@ float** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,dou
                     (Phi_rk[ir] +Phi_rk[ir+1])*(Phi_rk[ir] +Phi_rk[ir+1]));
             }
             //First iterate the metric for this Runge-Kutta step
-            metric_iteration(1.0,1.0,Beta, Beta1_2, a, alpha, r, nR, deltaR, true);
+            metric_iteration(1.0,1.0,Beta, Beta1_2, a, alpha, r, nR, deltaR, 0);
             #endif
 
             for(int ir=0;ir<nR;ir++){

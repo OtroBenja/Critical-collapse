@@ -22,13 +22,13 @@ double *get_mass(double *r, double *Phi, double *Pi, double *a, double maxR, dou
 }
 
 #if METRIC == 0
-void metric_iteration(double a0,double alpha0,double* Beta, double* Beta1_2, double* a, double* alpha, double* r, int nR, double deltaR, bool normalize){}
+void metric_iteration(double a0,double alpha0,double* Beta, double* Beta1_2, double* a, double* alpha, double* r, int nR, double deltaR, double normalize){}
 #endif
 
 #if METRIC == 1
-void metric_iteration(double a0,double alpha0,double* Beta, double* Beta1_2, double* a, double* alpha, double* r, int nR, double deltaR, bool normalize){
+void metric_iteration(double a0,double alpha0,double* Beta, double* Beta1_2, double* a, double* alpha, double* r, int nR, double deltaR, double normalize){
     
-    double m1, n1, m2, n2, m3, n3, m4, n4, norm;
+    double m1, n1, m2, n2, m3, n3, m4, n4, norm_value;
     a[0] = a0;
     alpha[0] = alpha0;
     for(int ir=0;ir<nR-1;ir++){
@@ -48,10 +48,10 @@ void metric_iteration(double a0,double alpha0,double* Beta, double* Beta1_2, dou
             a[ir+1] =     a[ir] +(m1 +2.0*(m2+m3) +m4)/6.0;
         alpha[ir+1] = alpha[ir] +(n1 +2.0*(n2+n3) +n4)/6.0;
     }
-    if (normalize) {norm = 1.0/(alpha[nR-1]*a[nR-1]);
-    } else {norm = 1.0;}
+    if (normalize == 0.0) {norm_value = 1.0/(alpha[nR-1]*a[nR-1]);
+    } else {norm_value = normalize;}
     for(int ir=0;ir<nR;ir++){
-        alpha[ir] = alpha[ir]*norm;
+        alpha[ir] = alpha[ir]*norm_value;
     }
 }
 #endif

@@ -17,7 +17,6 @@ double bh_mass;
 double bh_radius;
 bool is_bh;
 int last_iteration;
-//double **all_subgrids[10];
 double norm_global;
 double maxR_global;
 
@@ -25,6 +24,8 @@ double maxR_global;
 #include "initialize.h"
 #include "integration.h"
 #include "print.h"
+
+#define GHOST_SIZE 8
 
 //Function to integrate the whole metric
 void full_metric(int level,int n_levels, double ***all_subgrids){
@@ -49,7 +50,7 @@ void full_metric(int level,int n_levels, double ***all_subgrids){
         alpha = grid_l[5];
         deltaR =   *(grid_l[6]);
         nR = (int)(*(grid_l[8]));
-        //printf("grid %d; deltaR %lf; nR %d\n",i,deltaR,nR);
+        //printf("grid %d; deltaR %lf; nR %d\n",n_levels-i,deltaR,nR);
 
         //Calculate auxiliar variable Beta
         double     *Beta = malloc(sizeof(double)*nR);
@@ -59,10 +60,9 @@ void full_metric(int level,int n_levels, double ***all_subgrids){
             Beta_p05[ir] = 0.5*PI*(r[ir]+0.5*deltaR)*(
                 ( Pi[ir] + Pi[ir+1])*( Pi[ir] + Pi[ir+1]) +
                 (Phi[ir] +Phi[ir+1])*(Phi[ir] +Phi[ir+1]));
-        }    
+        }
         Beta[nR-1] = 2.0*PI*r[nR-1]*((Pi[nR-1])*(Pi[nR-1]) + (Phi[nR-1])*(Phi[nR-1]));
-
-        //Iteraate metric and save final value to continue on the next grid
+        //Iterate metric and save final value to continue on the next grid
         metric_iteration(a0, alpha0, Beta, Beta_p05, a, alpha, r, nR, deltaR, 1.0);
         a0     = a[nR-1];
         alpha0 = alpha[nR-1];
@@ -82,6 +82,8 @@ void full_metric(int level,int n_levels, double ***all_subgrids){
         }
     }
 }
+
+void copy_ghostzones(){}
 
 //Iterate on subgrid l, nT times
 void integration_l(double ***all_subgrids,int grid_n, double a0, double alpha0, int nT){
@@ -103,174 +105,128 @@ void integration_l(double ***all_subgrids,int grid_n, double a0, double alpha0, 
     double dR = *(grid_l[6]);
     double dT = *(grid_l[7]);
     int nR = (int)(*(grid_l[8]));
+    int nR_ex = nR + 2*GHOST_SIZE;
     double minR = *(grid_l[9]);
     double maxR = *(grid_l[10]);
 
-    double* Beta = malloc(sizeof(double)*nR);
-    double* Beta_p05 = malloc(sizeof(double)*nR);
-    double* Gamma = malloc(sizeof(double)*nR);
-    double* Epsilon = malloc(sizeof(double)*nR);
-    double* Phi_rk = malloc(sizeof(double)*nR);
-    double*  Pi_rk = malloc(sizeof(double)*nR);
+    double* Beta = malloc(sizeof(double)*nR_ex);
+    double* Beta_p05 = malloc(sizeof(double)*nR_ex);
+    double* Gamma = malloc(sizeof(double)*nR_ex);
+    double* Epsilon = malloc(sizeof(double)*nR_ex);
+    double* Phi_rk = malloc(sizeof(double)*nR_ex);
+    double*  Pi_rk = malloc(sizeof(double)*nR_ex);
+    Beta     += GHOST_SIZE;
+    Beta_p05 += GHOST_SIZE;
+    Gamma    += GHOST_SIZE;
+    Epsilon  += GHOST_SIZE;
+    Phi_rk   += GHOST_SIZE;
+    Pi_rk    += GHOST_SIZE;
 
-    double* Jn = malloc(sizeof(double)*nR);
-    double* Kn = malloc(sizeof(double)*nR);
-    double* Ln = malloc(sizeof(double)*nR);
-    double* Jsum = malloc(sizeof(double)*nR);
-    double* Ksum = malloc(sizeof(double)*nR);
-    double* Lsum = malloc(sizeof(double)*nR);
+    double* Jn = malloc(sizeof(double)*nR_ex);
+    double* Kn = malloc(sizeof(double)*nR_ex);
+    double* Ln = malloc(sizeof(double)*nR_ex);
+    double* Jsum = malloc(sizeof(double)*nR_ex);
+    double* Ksum = malloc(sizeof(double)*nR_ex);
+    double* Lsum = malloc(sizeof(double)*nR_ex);
+    Jn   += GHOST_SIZE;
+    Kn   += GHOST_SIZE;
+    Ln   += GHOST_SIZE;
+    Jsum += GHOST_SIZE;
+    Ksum += GHOST_SIZE;
+    Lsum += GHOST_SIZE;
 
-    //Get points from coarser grid (to the right)
-    double   r_right[6];
-    double phi_right[6];
-    double Phi_right[6];
-    double  Pi_right[6];
-    double   a_right[6];
-    double   alpha_right[6];
-    double   Gamma_right[6];
-    double Epsilon_right[6];
-    double   *r_coarser = all_subgrids[grid_n-1][0];
-    double *phi_coarser = all_subgrids[grid_n-1][1];
-    double *Phi_coarser = all_subgrids[grid_n-1][2];
-    double  *Pi_coarser = all_subgrids[grid_n-1][3];
-    double   *a_coarser = all_subgrids[grid_n-1][4];
-    double *alpha_coarser = all_subgrids[grid_n-1][5];
-    for(int i=0;i<4;i++){
-          r_right[i] =   r[nR-4+i];
-        phi_right[i] = phi[nR-4+i];
-        Phi_right[i] = Phi[nR-4+i];
-         Pi_right[i] =  Pi[nR-4+i];
-          a_right[i] =   a[nR-4+i];
-        alpha_right[i] = alpha[nR-4+i];
+    bool load_finer = true;
+    bool load_coarser = true;
+    if(minR==0.0) load_finer = false;
+    if(maxR==maxR_global) load_coarser = false;
+
+    double *Phi_coarse;
+    double  *Pi_coarse;
+    if(load_coarser){
+         Phi_coarse = all_subgrids[grid_n-1][2];
+          Pi_coarse = all_subgrids[grid_n-1][3];
     }
-    //Copy or interpolate from coarser grid
-      r_right[4] = 0.5*(  r_right[3] +   r_coarser[2]);
-    phi_right[4] = 0.5*(phi_right[3] + phi_coarser[2]);
-    Phi_right[4] = 0.5*(Phi_right[3] + Phi_coarser[2]);
-     Pi_right[4] = 0.5*( Pi_right[3] +  Pi_coarser[2]);
-      a_right[4] = 0.5*(  a_right[3] +   a_coarser[2]);
-    alpha_right[4] = 0.5*(alpha_right[3] + alpha_coarser[2]);
-      r_right[5] =   r_coarser[2];
-    phi_right[5] = phi_coarser[2];
-    Phi_right[5] = Phi_coarser[2];
-     Pi_right[5] =  Pi_coarser[2];
-      a_right[5] =   a_coarser[2];
-    alpha_right[5] = alpha_coarser[2];
-
-    //Get points from finer grid (to the left)
-    double   r_left[6];
-    double phi_left[6];
-    double Phi_left[6];
-    double  Pi_left[6];
-    double   a_left[6];
-    double   alpha_left[6];
-    double   Gamma_left[6];
-    double Epsilon_left[6];
-    double   *r_finer = all_subgrids[grid_n+1][0];
-    double *phi_finer = all_subgrids[grid_n+1][1];
-    double *Phi_finer = all_subgrids[grid_n+1][2];
-    double  *Pi_finer = all_subgrids[grid_n+1][3];
-    double   *a_finer = all_subgrids[grid_n+1][4];
-    double *alpha_finer = all_subgrids[grid_n+1][5];
-    for(int i=0;i<4;i++){
-          r_left[2+i] =   r[i];
-        phi_left[2+i] = phi[i];
-        Phi_left[2+i] = Phi[i];
-         Pi_left[2+i] =  Pi[i];
-          a_left[2+i] =   a[i];
-        alpha_left[2+i] = alpha[i];
+    double *Phi_fine;
+    double  *Pi_fine;
+    int nR_fine;
+    if(load_finer){
+         Phi_fine = all_subgrids[grid_n+1][2];
+          Pi_fine = all_subgrids[grid_n+1][3];
+          nR_fine = all_subgrids[grid_n+1][8][0];
     }
-    //Copy from finer grid
-      r_left[0] =   r_finer[nR-1-2];
-    phi_left[0] = phi_finer[nR-1-2];
-    Phi_left[0] = Phi_finer[nR-1-2];
-     Pi_left[0] =  Pi_finer[nR-1-2];
-      a_left[0] =   a_finer[nR-1-2];
-    alpha_left[0] = alpha_finer[nR-1-2];
-      r_left[1] =   r_finer[nR-1-4];
-    phi_left[1] = phi_finer[nR-1-4];
-    Phi_left[1] = Phi_finer[nR-1-4];
-     Pi_left[1] =  Pi_finer[nR-1-4];
-      a_left[1] =   a_finer[nR-1-4];
-    alpha_left[1] = alpha_finer[nR-1-4];
-
-    //Calculate Gamma and Epsilon for both sides
-    for(int ir=0;ir<6;ir++){
-          Gamma_left[ir] =                       alpha_left[ir]*( Pi_left[ir])/(a_left[ir]);
-        Epsilon_left[ir] = r_left[ir]*r_left[ir]*alpha_left[ir]*(Phi_left[ir])/(a_left[ir]);
-          Gamma_right[ir] =                       alpha_right[ir]*( Pi_right[ir])/(a_right[ir]);
-        Epsilon_right[ir] = r_right[ir]*r_right[ir]*alpha_right[ir]*(Phi_right[ir])/(a_right[ir]);
-    }
-
     for(int it=0;it<nT;it++){
         //Advance Pi and Phi using RK4
-        for(int ir=0;ir<nR;ir++){
+        for(int ir=-GHOST_SIZE;ir<nR+GHOST_SIZE;ir++){
               Ln[ir] = 0.0;
               Kn[ir] = 0.0;
             Jsum[ir] = 0.0;
             Ksum[ir] = 0.0;
             Lsum[ir] = 0.0;
         }
+        if(load_coarser){
+            //Get values from coarser grid (to the right)
+            for(int ig=1;ig<=4;ig++){
+            Phi[nR-1 +GRID_RATIO*ig] = Phi_coarse[ig];   
+             Pi[nR-1 +GRID_RATIO*ig] =  Pi_coarse[ig];   
+            }
+            for(int ig=0;ig<4;ig++){
+            int idx = nR+GRID_RATIO*ig;
+            Phi[idx] = 0.5*(Phi[idx-1]+Phi[idx+1]);
+             Pi[idx] = 0.5*( Pi[idx-1]+ Pi[idx+1]);
+            }
+        }   
+        if(load_finer){
+            //Get values from finer grid (to the left)
+            for(int ig=1;ig<=GHOST_SIZE;ig++){
+                Phi[-ig] = Phi_fine[nR_fine-1 -GRID_RATIO*ig];
+                 Pi[-ig] =  Pi_fine[nR_fine-1 -GRID_RATIO*ig];
+            }
+        }
+
         for(int n=0;n<4;n++){
             //Calculate intermediate RK values for Phi, Pi and auxiliar variable Beta
-            for(int ir=0;ir<nR;ir++){
+            for(int ir=-GHOST_SIZE;ir<nR+GHOST_SIZE;ir++){
                 Phi_rk[ir] = Phi[ir]+_rk[n]*dT*Kn[ir];
                  Pi_rk[ir] =  Pi[ir]+_rk[n]*dT*Ln[ir];
                   Beta[ir] = 2.0*PI*r[ir]*((Pi_rk[ir])*(Pi_rk[ir]) + (Phi_rk[ir])*(Phi_rk[ir]));
             }
-            for(int ir=0;ir<nR-1;ir++){
+            for(int ir=-GHOST_SIZE;ir<nR+1;ir++){
                 Beta_p05[ir] = 0.5*PI*(r[ir]+0.5*dR)*(
                     ( Pi_rk[ir] + Pi_rk[ir+1])*( Pi_rk[ir] + Pi_rk[ir+1]) +
                     (Phi_rk[ir] +Phi_rk[ir+1])*(Phi_rk[ir] +Phi_rk[ir+1]));
             }
             //Iterate the metric for this Runge-Kutta step
-            //metric_iteration(a0, alpha0, Beta, Beta_p05, a, alpha, r, nR, dR, norm_global);
             full_metric(1,N_LEVELS,all_subgrids);
-
             //Calculate auxiliar varaibles Gamma, Epsilon, rPhi and rPi
-            for(int ir=0;ir<nR;ir++){
+            for(int ir=-GHOST_SIZE;ir<nR+GHOST_SIZE;ir++){
                 Gamma[ir]   =             alpha[ir]*( Pi_rk[ir])/(a[ir]);
                 Epsilon[ir] = r[ir]*r[ir]*alpha[ir]*(Phi_rk[ir])/(a[ir]);
             }
-            for(int ir=0;ir<5;ir++){
-                rPhi[ir] = r[nR-5 +ir]*Phi_rk[nR-5 +ir];
-                 rPi[ir] = r[nR-5 +ir]* Pi_rk[nR-5 +ir];
-            }
 
             //calculate jn, kn and ln
-            Jn[0] = Gamma[0];
-            Jn[1] = Gamma[1];
-            if(minR==0){
-                Kn[0] = 0;
-                Ln[0] = alpha[0]*leftmost_D1(Phi_rk,0,dR)/a[0];
-                Kn[1] = leftmid_D1(Gamma,1,dR);
-                Ln[1] = leftmid_D1(Epsilon,1,dR)/(r[1]*r[1]);
-            } else {
-                Kn[0] = centered_D1(Gamma_left  ,2,dR);
-                Ln[0] = centered_D1(Epsilon_left,2,dR)/(r_left[2]*r_left[2]);
-                Kn[1] = centered_D1(Gamma_left  ,3,dR);
-                Ln[1] = centered_D1(Epsilon_left,3,dR)/(r_left[3]*r_left[3]);
-            }
             //#pragma omp parallel for
-            for(int ir=2;ir<nR-2;ir++){
+            for(int ir=-2*(3-n);ir<nR+2*(3-n);ir++){
                 Jn[ir] = Gamma[ir];
                 Kn[ir] = centered_D1(Gamma,ir,dR);
                 Ln[ir] = centered_D1(Epsilon,ir,dR)/(r[ir]*r[ir]);
             }
-            Jn[nR-2] = Gamma[nR-2];
-            Jn[nR-1] = Gamma[nR-1];
-
+            if(minR==0.0){
+                Kn[0] = 0;
+                Ln[0] = alpha[0]*leftmost_D1(Phi_rk,0,dR)/a[0];
+                Kn[1] = leftmid_D1(Gamma,1,dR);
+                Ln[1] = leftmid_D1(Epsilon,1,dR)/(r[1]*r[1]);
+            }
             if(maxR==maxR_global){
+                for(int ir=0;ir<5;ir++){
+                    rPhi[ir] = r[nR-5 +ir]*Phi_rk[nR-5 +ir];
+                    rPi[ir] = r[nR-5 +ir]* Pi_rk[nR-5 +ir];
+                }
+                //printf("is this on? grid%d\n",grid_n);
                 Kn[nR-2] = rightmid_D1(Gamma,nR-2,dR);
                 Ln[nR-2] = rightmid_D1(Epsilon,nR-2,dR)/(r[nR-2]*r[nR-2]);
                 Kn[nR-1] = -rightmost_D1(rPhi,4,dR)/r[nR-1];
                 Ln[nR-1] = -rightmost_D1( rPi,4,dR)/r[nR-1];
-            } else {
-                Kn[nR-2] = centered_D1(Gamma_right  ,2,dR);
-                Ln[nR-2] = centered_D1(Epsilon_right,2,dR)/(r_right[2]*r_right[2]);
-                Kn[nR-1] = centered_D1(Gamma_right  ,3,dR);
-                Ln[nR-1] = centered_D1(Epsilon_right,3,dR)/(r_right[3]*r_right[3]);
-            }
+            } //else {printf("it's not on, grid%d\n",grid_n);}
 
             for(int ir=0;ir<nR;ir++){
                 Jsum[ir] += rk[n]*Jn[ir];
@@ -286,18 +242,18 @@ void integration_l(double ***all_subgrids,int grid_n, double a0, double alpha0, 
              Pi[ir] += _6*dT*Lsum[ir];
         }
     }
-    free(Beta);
-    free(Beta_p05);
-    free(Gamma);
-    free(Epsilon);
-    free(Phi_rk);
-    free(Pi_rk);
-    free(Jn);
-    free(Kn);
-    free(Ln);
-    free(Jsum);
-    free(Ksum);
-    free(Lsum);
+    free(Beta-GHOST_SIZE);
+    free(Beta_p05-GHOST_SIZE);
+    free(Gamma-GHOST_SIZE);
+    free(Epsilon-GHOST_SIZE);
+    free(Phi_rk-GHOST_SIZE);
+    free(Pi_rk-GHOST_SIZE);
+    free(Jn-GHOST_SIZE);
+    free(Kn-GHOST_SIZE);
+    free(Ln-GHOST_SIZE);
+    free(Jsum-GHOST_SIZE);
+    free(Ksum-GHOST_SIZE);
+    free(Lsum-GHOST_SIZE);
 
     if(grid_n>1){
         double **grid_next = all_subgrids[grid_n-1];
@@ -313,14 +269,14 @@ void integration_l(double ***all_subgrids,int grid_n, double a0, double alpha0, 
 
 double **initialize_subgrid(double fType,double *model_params,double initial_r, double final_r, double deltaR){
     double **initial_field;
-    initial_field = initialize_field(fType,model_params,deltaR,initial_r,final_r);
+    initial_field = initialize_field(fType,model_params,deltaR,initial_r-GHOST_SIZE*deltaR,final_r+GHOST_SIZE*deltaR);
 
     int nR = (int)((final_r-initial_r)/deltaR);
     double nR_f = (double)nR;
     double deltaT = deltaR/5.;
-    double *a     = malloc(sizeof(double)*nR);
-    double *alpha = malloc(sizeof(double)*nR);
-    for(int ir=0;ir<nR;ir++){
+    double *a     = malloc(sizeof(double)*(nR+2*GHOST_SIZE));
+    double *alpha = malloc(sizeof(double)*(nR+2*GHOST_SIZE));
+    for(int ir=0;ir<nR+2*GHOST_SIZE;ir++){
         a[ir] = 1.0;
         alpha[ir] = 1.0;
     }
@@ -332,8 +288,12 @@ double **initialize_subgrid(double fType,double *model_params,double initial_r, 
     dR_p[0] = deltaR;
     dT_p[0] = deltaT;
     nR_p[0] = nR_f;
-    ri_p[0] = initial_r;
-    rf_p[0] = initial_field[0][nR-1];
+    //ri_p[0] = initial_r;
+    if(initial_r==0.0){
+        initial_field[0][2] = 1.0E-50;
+        ri_p[0] = 0.0;
+    } else {ri_p[0] = (initial_field[0]+GHOST_SIZE)[0];}
+    rf_p[0] = (initial_field[0]+GHOST_SIZE)[nR-1];
 
     printf("nR: %d\n",nR);
     printf("dR_pointer: %lf\n",*dR_p);
@@ -341,17 +301,17 @@ double **initialize_subgrid(double fType,double *model_params,double initial_r, 
     printf("grid range: %lf - %lf\n\n",*ri_p,*rf_p);
 
     double **subgrid = malloc(sizeof(double*)*11);
-    subgrid[0]  = initial_field[0]; // r values of the grid
-    subgrid[1]  = initial_field[1]; // phi values of the grid
-    subgrid[2]  = initial_field[2]; // Phi values of the grid
-    subgrid[3]  = initial_field[3]; // Pi values of the grid
-    subgrid[4]  = a;     // a values of the grid
-    subgrid[5]  = alpha; // alpha values of the grid
-    subgrid[6]  = dR_p;  // deltaR of the grid (as pointer)
-    subgrid[7]  = dT_p;  // deltaT of the grid (as pointer)
-    subgrid[8]  = nR_p;  // number of points in the grid (as pointer)
-    subgrid[9]  = ri_p;  // min r of the grid (as pointer)
-    subgrid[10] = rf_p;  // max r of the grid (as pointer)
+    subgrid[0]  = initial_field[0]+GHOST_SIZE; // r values of the grid
+    subgrid[1]  = initial_field[1]+GHOST_SIZE; // phi values of the grid
+    subgrid[2]  = initial_field[2]+GHOST_SIZE; // Phi values of the grid
+    subgrid[3]  = initial_field[3]+GHOST_SIZE; // Pi values of the grid
+    subgrid[4]  = a+GHOST_SIZE;     // a values of the grid
+    subgrid[5]  = alpha+GHOST_SIZE; // alpha values of the grid
+    subgrid[6]  = dR_p; // deltaR of the grid (as pointer)
+    subgrid[7]  = dT_p; // deltaT of the grid (as pointer)
+    subgrid[8]  = nR_p; // number of points in the grid (as pointer)
+    subgrid[9]  = ri_p; // min r of the grid (as pointer)
+    subgrid[10] = rf_p; // max r of the grid (as pointer)
 
     return subgrid;
 }
@@ -383,11 +343,11 @@ float **variable_iteration(int fType,double *model_params,double deltaR,double m
         double maxR_l;
         
         if(n==n_levels){minR_l = 0;}
-        else{minR_l = pow(2,-n)*maxR;}
+        else{minR_l = pow(GRID_RATIO,-n)*maxR;}
 
         if(n==1){maxR_l = maxR+deltaR*1.01;}
-        else{maxR_l = pow(2,-(n-1))*(maxR+deltaR*1.01);}
-        double deltaR_l = pow(2,-(n-1))*deltaR;
+        else{maxR_l = pow(GRID_RATIO,-(n-1))*(maxR+deltaR*1.01);}
+        double deltaR_l = pow(GRID_RATIO,-(n-1))*deltaR;
         gridN = initialize_subgrid(fType,model_params,minR_l,maxR_l,deltaR_l);
         all_subgrids[n] = gridN;
     }
@@ -434,7 +394,7 @@ float **variable_iteration(int fType,double *model_params,double deltaR,double m
     metric_iteration(1.0,1.0,Beta, Beta1_2, a, alpha, r, nR, deltaR, 0);
     free(Beta);
     free(Beta1_2);
-    full_metric(1,n_levels,all_subgrids);
+    full_metric(1,N_LEVELS,all_subgrids);
 
     printf("iteration stato\n");
     for(int i=0;i<iterations;i++){
@@ -452,7 +412,7 @@ float **variable_iteration(int fType,double *model_params,double deltaR,double m
                     double* a_l     = gridN[4];
                     double* alpha_l = gridN[5];
                     int nR_l = (int)(*gridN[8]);
-                    for(int ir_l=0; ir_l<nR_l-1; ir_l += pow(2,n_levels-(i+1))){
+                    for(int ir_l=0; ir_l<nR_l-1; ir_l += pow(GRID_RATIO,n_levels-(i+1))){
                         phi[ir]   = phi_l[ir_l];
                         Phi[ir]   = Phi_l[ir_l];
                         Pi[ir]    = Pi_l[ir_l];
@@ -490,7 +450,7 @@ float **variable_iteration(int fType,double *model_params,double deltaR,double m
                     double* a_l     = gridN[4];
                     double* alpha_l = gridN[5];
                     int nR_l = (int)(*gridN[8]);
-                    for(int ir_l=0; ir_l<nR_l-1; ir_l += pow(2,n_levels-(i+1))){
+                    for(int ir_l=0; ir_l<nR_l-1; ir_l += pow(GRID_RATIO,n_levels-(i+1))){
                         phi[ir]   = phi_l[ir_l];
                         Phi[ir]   = Phi_l[ir_l];
                         Pi[ir]    = Pi_l[ir_l];
@@ -530,27 +490,21 @@ float **variable_iteration(int fType,double *model_params,double deltaR,double m
         //printf("print2\n");
         //integration_l(grid0,1.0,1.0,1);
         //Integrate from smallest to bigger grid
-        full_metric(1,n_levels,all_subgrids);
+        full_metric(1,N_LEVELS,all_subgrids);
         int count_level[n_levels-1];
-        //bool trigger_level[n_levels];
         for(int i=0;i<n_levels;i++){
             count_level[i] = 0;
-            //trigger_level[i] = false;
         }
         //trigger_level[0] = true;
         for(int i=0;i<n_levels-1;){
-            //if(trigger_level[i]){
-                integration_l(all_subgrids,n_levels-i,1,1,1);
-                count_level[i]++;
-                if(count_level[i]==2){
-                    //trigger_level[i+1]=true;
-                    count_level[i]=0;
-                    i++;
-                } else {
-                    i = 0;
-                }
-
-            //}
+            integration_l(all_subgrids,n_levels-i,1,1,1);
+            count_level[i]++;
+            if(count_level[i]==GRID_RATIO){
+                count_level[i]=0;
+                i++;
+            } else {
+                i = 0;
+            }
         }
         integration_l(all_subgrids,1,1,1,1);
         //printf("print3\n");

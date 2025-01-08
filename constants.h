@@ -14,5 +14,5 @@
 #define _6 0.166666666 // 1/6
 #define E  2.718281828
 #define TOLERANCE 1.0E-2 // Min value of g^rr to consider as non-zero for the purposes of a collapse into BH
-#define N_LEVELS 2 // Maximum amount of grid levels in variable grid
+#define N_LEVELS 3 // Maximum amount of grid levels in variable grid
 #define GRID_RATIO 2 // Ratio of resolution from one grid to the next

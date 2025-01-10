@@ -5,7 +5,7 @@
 #define SAVE_MODE 0 // 0 = save uniformly on every SAVE_RES and SAVE_ITERATION ; 1 = save all points after FIRST_ITERATION and with r > MIN_R
 #define SAVE_RES 10
 #define SAVE_ITERATION 100
-#define FIRST_ITERATION 77000 //77950
+#define FIRST_ITERATION 0 //77950
 #define MIN_R 0
 #define ITERATIONS 7850
 #define EPSILON 0.0 // Default Kreiss-Oliger dampening

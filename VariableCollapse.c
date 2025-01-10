@@ -54,8 +54,10 @@ void full_metric(int level,int n_levels, double ***all_subgrids){
         //printf("grid %d; deltaR %lf; nR %d\n",n_levels-i,deltaR,nR);
 
         //Calculate auxiliar variable Beta
-        double     *Beta = malloc(sizeof(double)*nR);
-        double *Beta_p05 = malloc(sizeof(double)*nR);
+        //double     *Beta = malloc(sizeof(double)*nR);
+        //double *Beta_p05 = malloc(sizeof(double)*nR);
+        double     Beta[nR];
+        double Beta_p05[nR];
         for(int ir=0;ir<nR-1;ir++){
             Beta[ir] = 2.0*PI*r[ir]*((Pi[ir])*(Pi[ir]) + (Phi[ir])*(Phi[ir]));
             Beta_p05[ir] = 0.5*PI*(r[ir]+0.5*deltaR)*(
@@ -65,17 +67,17 @@ void full_metric(int level,int n_levels, double ***all_subgrids){
         Beta[nR-1] = 2.0*PI*r[nR-1]*((Pi[nR-1])*(Pi[nR-1]) + (Phi[nR-1])*(Phi[nR-1]));
         //Iterate metric and save final value to continue on the next grid
         //for(int j=0;j<10;j++){
-            //printf("r%d: %e\n",j,r[j]);
-            //printf("Phi%d: %lf; Pi%d %lf\n" ,j,Phi[j],j,Pi[j]);
-            //printf("a%d: %lf; alpha%d %lf\n",j,  a[j],j,alpha[j]);
+        //    printf("r%d: %e\n",j,r[j]);
+        //    printf("Phi%d: %lf; Pi%d %lf\n" ,j,Phi[j],j,Pi[j]);
+        //    printf("a%d: %lf; alpha%d %lf\n",j,  a[j],j,alpha[j]);
         //}
         metric_iteration(a0, alpha0, Beta, Beta_p05, a, alpha, r, nR, deltaR, 1.0);
         a0     = a[nR-1];
         alpha0 = alpha[nR-1];
-        //printf("a0: %lf; alpha0 %lf\n\n",a0,alpha0);
+        //printf("a0: %e; alpha0 %e\n\n",a0,alpha0);
 
-        free(Beta);
-        free(Beta_p05);
+        //free(Beta);
+        //free(Beta_p05);
     }
     //Normalize the metric
     double norm = 1.0/(a0*alpha0);
@@ -310,30 +312,30 @@ double **initialize_subgrid(double fType,double *model_params,double initial_r, 
 
     double new_initial_r;
     int  left_ghost_size;
-    if (initial_r == 0) {
-        new_initial_r = initial_r;
-        left_ghost_size = 0;
-    } else {
+    //if (initial_r == 0) {
+    //    new_initial_r = initial_r;
+    //    left_ghost_size = 0;
+    //} else {
         new_initial_r = initial_r - GHOST_SIZE*deltaR;
         left_ghost_size = GHOST_SIZE;
-    }
+    //}
 
     double   new_final_r;
     int right_ghost_size;
-    if (final_r == maxR_global) {
-        new_final_r = final_r + deltaR*0.01;
-        right_ghost_size = 0;
-    } else {
+    //if (final_r == maxR_global) {
+    //    new_final_r = final_r + deltaR*0.01;
+    //    right_ghost_size = 0;
+    //} else {
         new_final_r = final_r + GHOST_SIZE*deltaR + deltaR*0.01;
         right_ghost_size = GHOST_SIZE;
-    }
+    //}
 
     initial_field = initialize_field(fType,model_params,deltaR,new_initial_r,new_final_r);
 
     int nR = (int)((deltaR*0.01+final_r-initial_r)/deltaR);
     double nR_f = (double)nR;
-    //int nR_ext = (int)((new_final_r-new_initial_r)/deltaR);
-    int nR_ext = nR + left_ghost_size + right_ghost_size;
+    int nR_ext = (int)((new_final_r-new_initial_r)/deltaR);
+    //int nR_ext = nR + left_ghost_size + right_ghost_size;
     double deltaT = deltaR/5.;
     double *a     = malloc(sizeof(double)*(nR_ext));
     double *alpha = malloc(sizeof(double)*(nR_ext));
@@ -350,8 +352,8 @@ double **initialize_subgrid(double fType,double *model_params,double initial_r, 
     dT_p[0] = deltaT;
     nR_p[0] = nR_f;
     ri_p[0] = initial_r;
-    //if(initial_r==0.0){
-    //    initial_field[0][left_ghost_size] = 1.0E-50;
+    if(initial_r==0.0) 
+        initial_field[0][left_ghost_size] = 1.0E-50;
     //    ri_p[0] = 0.0;
     //} else {ri_p[0] = (initial_field[0]+left_ghost_size)[0];}
     //rf_p[0] = (initial_field[0]+left_ghost_size)[nR-1];
@@ -363,7 +365,7 @@ double **initialize_subgrid(double fType,double *model_params,double initial_r, 
     printf("dT_pointer: %lf\n",*dT_p);
     //printf("ri: %.20lf\n",initial_r);
     //printf("rf: %.20lf\n",final_r);
-    printf("grid range: %lf - %lf\n\n",*ri_p,(initial_field[0]+left_ghost_size)[nR-1]);
+    printf("grid range: %e - %e\n\n",initial_field[0][left_ghost_size],(initial_field[0]+left_ghost_size)[nR-1]);
 
     double **subgrid = malloc(sizeof(double*)*11);
     subgrid[0]  = initial_field[0]+left_ghost_size; // r values of the grid
@@ -463,7 +465,7 @@ float **variable_iteration(int fType,double *model_params,double deltaR,double m
     free(Beta1_2);
     full_metric(1,N_LEVELS,all_subgrids);
 
-    printf("iteration stato\n");
+    printf("iteration start\n");
     for(int i=0;i<iterations;i++){
 
         if(SAVE_MODE == 0){

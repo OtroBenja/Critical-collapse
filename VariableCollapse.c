@@ -143,10 +143,10 @@ void integration_l(double ***all_subgrids,int grid_n, double a0, double alpha0, 
     Ksum += GHOST_SIZE;
     Lsum += GHOST_SIZE;
 
-    bool load_finer = true;
-    bool load_coarser = true;
-    if(minR==0.0) load_finer = false;
-    if(maxR==maxR_global) load_coarser = false;
+    bool load_finer = !((bool)(*(grid_l[11])));
+    bool load_coarser = !((bool)(*(grid_l[12])));
+    //if(minR==0.0) load_finer = false;
+    //if(maxR==maxR_global) load_coarser = false;
 
     int right_idx = nR + GHOST_SIZE;
     double   *Phi_coarse;
@@ -158,6 +158,7 @@ void integration_l(double ***all_subgrids,int grid_n, double a0, double alpha0, 
            Pi_coarse = all_subgrids[grid_n-1][3];
             a_coarse = all_subgrids[grid_n-1][4];
         alpha_coarse = all_subgrids[grid_n-1][5];
+        printf("right lim: %lf\n",maxR);
     }
 
     int left_idx = - GHOST_SIZE;
@@ -172,6 +173,7 @@ void integration_l(double ***all_subgrids,int grid_n, double a0, double alpha0, 
             a_fine = all_subgrids[grid_n+1][4];
         alpha_fine = all_subgrids[grid_n+1][5];
            nR_fine = (int)(*(all_subgrids[grid_n+1][8]));
+        printf("left lim: %lf\n",minR);
     }
     
     for(int it=0;it<nT;it++){
@@ -212,9 +214,9 @@ void integration_l(double ***all_subgrids,int grid_n, double a0, double alpha0, 
         //Advance Pi and Phi using RK4
         for(int n=0;n<4;n++){
 
-            if(load_coarser){right_idx = nR + (GHOST_SIZE - GRID_RATIO*n);
+            if(load_coarser){right_idx = nR + (GHOST_SIZE - 2*n);
             } else {right_idx = nR;}
-            if(load_finer  ){left_idx  =    - (GHOST_SIZE - GRID_RATIO*n);
+            if(load_finer  ){left_idx  =    - (GHOST_SIZE - 2*n);
             } else {left_idx  = 0; }
 
             //Calculate intermediate RK values for Phi, Pi and auxiliar variable Beta
@@ -238,6 +240,8 @@ void integration_l(double ***all_subgrids,int grid_n, double a0, double alpha0, 
             }
 
             //calculate jn, kn and ln at non-boundaries
+            for(int ir=left_idx;ir<right_idx;ir++)
+                Jn[ir] = Gamma[ir];
             for(int ir=left_idx+2;ir<right_idx-2;ir++){
                 Jn[ir] = Gamma[ir];
                 Kn[ir] = centered_D1(Gamma,ir,dR);
@@ -245,7 +249,7 @@ void integration_l(double ***all_subgrids,int grid_n, double a0, double alpha0, 
             }
 
             //Calculate left boundary (origin) if neccesary
-            if(minR==0.0){
+            if(!load_finer){
                 Kn[0] = 0;
                 Ln[0] = alpha[0]*leftmost_D1(Phi_rk,0,dR)/a[0];
                 Kn[1] = leftmid_D1(Gamma,1,dR);
@@ -253,15 +257,19 @@ void integration_l(double ***all_subgrids,int grid_n, double a0, double alpha0, 
             }
 
             //Calculate right boundary (outgoing) if neccesary
-            if(maxR==maxR_global){
+            if(!load_coarser){
                 for(int ir=0;ir<5;ir++){
                     rPhi[ir] = r[nR-5 +ir]*Phi_rk[nR-5 +ir];
                      rPi[ir] = r[nR-5 +ir]* Pi_rk[nR-5 +ir];
                 }
-                Kn[nR-2] = rightmid_D1(Gamma,nR-2,dR);
-                Ln[nR-2] = rightmid_D1(Epsilon,nR-2,dR)/(r[nR-2]*r[nR-2]);
-                Kn[nR-1] = -rightmost_D1(rPhi,4,dR)/r[nR-1];
-                Ln[nR-1] = -rightmost_D1( rPi,4,dR)/r[nR-1];
+                //Kn[nR-2] = rightmid_D1(Gamma,nR-2,dR);
+                //Ln[nR-2] = rightmid_D1(Epsilon,nR-2,dR)/(r[nR-2]*r[nR-2]);
+                //Kn[nR-1] = -rightmost_D1(rPhi,4,dR)/r[nR-1];
+                //Ln[nR-1] = -rightmost_D1( rPi,4,dR)/r[nR-1];
+                Kn[nR-2] = 0;
+                Ln[nR-2] = 0;
+                Kn[nR-1] = 0;
+                Ln[nR-1] = 0;
             }
 
             for(int ir=left_idx;ir<right_idx;ir++){
@@ -312,23 +320,27 @@ double **initialize_subgrid(double fType,double *model_params,double initial_r, 
 
     double new_initial_r;
     int  left_ghost_size;
-    //if (initial_r == 0) {
-    //    new_initial_r = initial_r;
-    //    left_ghost_size = 0;
-    //} else {
+    bool left_limit = false;
+    if (initial_r == 0) {
+        new_initial_r = initial_r;
+        left_ghost_size = 0;
+        left_limit = true;
+    } else {
         new_initial_r = initial_r - GHOST_SIZE*deltaR;
         left_ghost_size = GHOST_SIZE;
-    //}
+    }
 
     double   new_final_r;
     int right_ghost_size;
-    //if (final_r == maxR_global) {
-    //    new_final_r = final_r + deltaR*0.01;
-    //    right_ghost_size = 0;
-    //} else {
+    bool right_limit = false;
+    if (final_r == maxR_global) {
+        new_final_r = final_r + deltaR*0.01;
+        right_ghost_size = 0;
+        right_limit = true;
+    } else {
         new_final_r = final_r + GHOST_SIZE*deltaR + deltaR*0.01;
         right_ghost_size = GHOST_SIZE;
-    //}
+    }
 
     initial_field = initialize_field(fType,model_params,deltaR,new_initial_r,new_final_r);
 
@@ -348,11 +360,17 @@ double **initialize_subgrid(double fType,double *model_params,double initial_r, 
     double *dT_p = malloc(sizeof(double));
     double *ri_p = malloc(sizeof(double));
     double *rf_p = malloc(sizeof(double));
+    double *llim_p = malloc(sizeof(double));
+    double *rlim_p = malloc(sizeof(double));
+
     dR_p[0] = deltaR;
     dT_p[0] = deltaT;
     nR_p[0] = nR_f;
     ri_p[0] = initial_r;
-    if(initial_r==0.0) 
+    llim_p[0] = (double)left_limit;
+    rlim_p[0] = (double)right_limit;
+
+    if(left_limit) 
         initial_field[0][left_ghost_size] = 1.0E-50;
     //    ri_p[0] = 0.0;
     //} else {ri_p[0] = (initial_field[0]+left_ghost_size)[0];}
@@ -365,20 +383,26 @@ double **initialize_subgrid(double fType,double *model_params,double initial_r, 
     printf("dT_pointer: %lf\n",*dT_p);
     //printf("ri: %.20lf\n",initial_r);
     //printf("rf: %.20lf\n",final_r);
+    if(left_limit) printf("Array contains left boundary\n");
+    if(right_limit) printf("Array contains right boundary\n");
+    //if((bool)(*llim_p)) printf("derreferencing works on left\n");
+    //if((bool)(*rlim_p)) printf("derreferencing works on right\n");
     printf("grid range: %e - %e\n\n",initial_field[0][left_ghost_size],(initial_field[0]+left_ghost_size)[nR-1]);
 
-    double **subgrid = malloc(sizeof(double*)*11);
+    double **subgrid = malloc(sizeof(double*)*13);
     subgrid[0]  = initial_field[0]+left_ghost_size; // r values of the grid
     subgrid[1]  = initial_field[1]+left_ghost_size; // phi values of the grid
     subgrid[2]  = initial_field[2]+left_ghost_size; // Phi values of the grid
     subgrid[3]  = initial_field[3]+left_ghost_size; // Pi values of the grid
     subgrid[4]  =     a+left_ghost_size; // a values of the grid
     subgrid[5]  = alpha+left_ghost_size; // alpha values of the grid
-    subgrid[6]  = dR_p; // deltaR of the grid (as pointer)
-    subgrid[7]  = dT_p; // deltaT of the grid (as pointer)
-    subgrid[8]  = nR_p; // number of points in the grid (as pointer)
-    subgrid[9]  = ri_p; // min r of the grid (as pointer)
-    subgrid[10] = rf_p; // max r of the grid (as pointer)
+    subgrid[6]  = dR_p;   // deltaR of the grid (as pointer)
+    subgrid[7]  = dT_p;   // deltaT of the grid (as pointer)
+    subgrid[8]  = nR_p;   // number of points in the grid (as pointer)
+    subgrid[9]  = ri_p;   // min r of the grid (as pointer)
+    subgrid[10] = rf_p;   // max r of the grid (as pointer)
+    subgrid[11] = llim_p; // bool for left limit of the grid (as pointer)
+    subgrid[12] = rlim_p; // bool for right limit of the grid (as pointer)
 
     return subgrid;
 }
@@ -623,6 +647,7 @@ int main(int argc, char* argv[]){
     if((argc>5) && atof(argv[5])) deltaR = atof(argv[5]);
     double maxR = 50;
     if((argc>6) && atoi(argv[6])) maxR = atof(argv[6]);
+    //maxR_global = maxR;
     maxR_global = maxR+deltaR;
     int iterations = ITERATIONS;
     if((argc>7) && atoi(argv[7])) iterations = atoi(argv[7]);

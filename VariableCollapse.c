@@ -91,7 +91,82 @@ void full_metric(int level,int n_levels, double ***all_subgrids){
     }
 }
 
-void copy_ghostzones(){}
+double mass_ir(double ***all_subgrids, int grid_n, int ir){
+
+    double **grid_l;
+    double *r;
+    double *Phi;
+    double *Pi;
+    double *a;
+    double dR;
+    int nR;
+
+    double integrand;
+    double integrand_previous;
+    double temp;
+    double mass = 0;
+
+    for(int n=0;n<grid_n;n++){
+        //Load each subgrid (in order)
+        grid_l = all_subgrids[N_LEVELS-n];
+        r = grid_l[0];
+        Phi = grid_l[2];
+        Pi = grid_l[3];
+        a = grid_l[4];
+        dR = *(grid_l[6]);
+        nR = (int)(*(grid_l[8]));
+
+        integrand_previous = 2.0*PI*(Phi[0]*Phi[0] +Pi[0]*Pi[0])*r[0]*r[0]/(a[0]*a[0]);
+        for(int ir=1;ir<nR;ir++){
+            integrand = 2.0*PI*(Phi[ir]*Phi[ir] +Pi[ir]*Pi[ir])*r[ir]*r[ir]/(a[ir]*a[ir]);
+            mass += 0.5*dR*(integrand+integrand_previous);
+            integrand_previous = integrand;
+        }
+    }
+    //Load each subgrid (in order)
+    grid_l = all_subgrids[N_LEVELS-grid_n];
+    r = grid_l[0];
+    Phi = grid_l[2];
+    Pi = grid_l[3];
+    a = grid_l[4];
+    dR = *(grid_l[6]);
+    nR = (int)(*(grid_l[8]));
+
+    integrand_previous = 2.0*PI*(Phi[0]*Phi[0] +Pi[0]*Pi[0])*r[0]*r[0]/(a[0]*a[0]);
+    for(int ir=1;ir<ir+1;ir++){
+        integrand = 2.0*PI*(Phi[ir]*Phi[ir] +Pi[ir]*Pi[ir])*r[ir]*r[ir]/(a[ir]*a[ir]);
+        mass += 0.5*dR*(integrand+integrand_previous);
+        integrand_previous = integrand;
+    }
+
+    return mass;
+}
+
+void check_collapse(double ***all_subgrids, double max_a, int iteration){
+
+    double **grid_l;
+    double *a;
+    int nR;
+
+    for(int n=0;n<N_LEVELS;n++){
+        //Load each subgrid (in order)
+        grid_l = all_subgrids[N_LEVELS-n];
+        a = grid_l[4];
+        nR = (int)(*(grid_l[8]));
+
+        //Check if a collapse has happened if a > 1/TOLERANCE^2
+        for(int ir=0;ir<nR;ir++){
+            if(a[ir]>max_a){
+                double *r = grid_l[0];
+                bh_radius = r[ir];
+                bh_mass = mass_ir(all_subgrids,n,ir);
+                last_iteration = iteration;
+                is_bh = true;
+                break;
+            }
+        }
+    }
+}
 
 //Iterate on subgrid l, nT times
 void integration_l(double ***all_subgrids,int grid_n, double a0, double alpha0, int nT){
@@ -158,7 +233,6 @@ void integration_l(double ***all_subgrids,int grid_n, double a0, double alpha0, 
            Pi_coarse = all_subgrids[grid_n-1][3];
             a_coarse = all_subgrids[grid_n-1][4];
         alpha_coarse = all_subgrids[grid_n-1][5];
-        printf("right lim: %lf\n",maxR);
     }
 
     int left_idx = - GHOST_SIZE;
@@ -173,7 +247,6 @@ void integration_l(double ***all_subgrids,int grid_n, double a0, double alpha0, 
             a_fine = all_subgrids[grid_n+1][4];
         alpha_fine = all_subgrids[grid_n+1][5];
            nR_fine = (int)(*(all_subgrids[grid_n+1][8]));
-        printf("left lim: %lf\n",minR);
     }
     
     for(int it=0;it<nT;it++){
@@ -243,7 +316,6 @@ void integration_l(double ***all_subgrids,int grid_n, double a0, double alpha0, 
             for(int ir=left_idx;ir<right_idx;ir++)
                 Jn[ir] = Gamma[ir];
             for(int ir=left_idx+2;ir<right_idx-2;ir++){
-                Jn[ir] = Gamma[ir];
                 Kn[ir] = centered_D1(Gamma,ir,dR);
                 Ln[ir] = centered_D1(Epsilon,ir,dR)/(r[ir]*r[ir]);
             }
@@ -262,14 +334,14 @@ void integration_l(double ***all_subgrids,int grid_n, double a0, double alpha0, 
                     rPhi[ir] = r[nR-5 +ir]*Phi_rk[nR-5 +ir];
                      rPi[ir] = r[nR-5 +ir]* Pi_rk[nR-5 +ir];
                 }
-                //Kn[nR-2] = rightmid_D1(Gamma,nR-2,dR);
-                //Ln[nR-2] = rightmid_D1(Epsilon,nR-2,dR)/(r[nR-2]*r[nR-2]);
-                //Kn[nR-1] = -rightmost_D1(rPhi,4,dR)/r[nR-1];
-                //Ln[nR-1] = -rightmost_D1( rPi,4,dR)/r[nR-1];
-                Kn[nR-2] = 0;
-                Ln[nR-2] = 0;
-                Kn[nR-1] = 0;
-                Ln[nR-1] = 0;
+                Kn[nR-2] = rightmid_D1(Gamma,nR-2,dR);
+                Ln[nR-2] = rightmid_D1(Epsilon,nR-2,dR)/(r[nR-2]*r[nR-2]);
+                Kn[nR-1] = -rightmost_D1(rPhi,4,dR)/r[nR-1];
+                Ln[nR-1] = -rightmost_D1( rPi,4,dR)/r[nR-1];
+                //Kn[nR-2] = 0;
+                //Ln[nR-2] = 0;
+                //Kn[nR-1] = 0;
+                //Ln[nR-1] = 0;
             }
 
             for(int ir=left_idx;ir<right_idx;ir++){
@@ -567,7 +639,6 @@ float **variable_iteration(int fType,double *model_params,double deltaR,double m
             }
         }
 
-        //printf("print1\n");
         //Check if a collapse has happened if a > 1/TOLERANCE^2
         for(int ir=0;ir<nR;ir++){
             if(a[ir]>max_a){

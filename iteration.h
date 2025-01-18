@@ -8,7 +8,7 @@ float** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,dou
 
     int nR = (int)(maxR/deltaR);
     int noSaveNR = (int)(MIN_R/deltaR);
-    int saveNR = (int)((maxR-MIN_R)/deltaR);
+    int saveNR = (int)((fmin(maxR,MAX_R)-MIN_R)/deltaR);
     double deltaT = deltaR/5.;
     double* mass;
     double max_a = pow(TOLERANCE,-0.5); // Max value of 'a' according to g^rr tolerance

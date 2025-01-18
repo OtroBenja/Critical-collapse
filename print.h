@@ -22,7 +22,7 @@ void print_data(float **hist,int fType,double *model_parameters,int iterations,d
     }
     if(SAVE_MODE == 1){
         print_iterations = iterations;
-        printR = (int)(maxR/deltaR);
+        printR = (int)((fmin(maxR,MAX_R)-MIN_R)/deltaR);
     }
     double p0 = model_parameters[0];
     double r0 = model_parameters[1];
@@ -63,9 +63,9 @@ void print_data(float **hist,int fType,double *model_parameters,int iterations,d
     //Print phi
     for(int i=0;i<print_iterations;i++){
         for(int ir=0;ir<(printR-1);ir++){
-            fprintf(data,"%lf,",hist[1][i*printR+ir]);
+            fprintf(data,"%e,",hist[1][i*printR+ir]);
         }
-        fprintf(data,"%lf\n",hist[1][i*printR+printR-1]);
+        fprintf(data,"%e\n",hist[1][i*printR+printR-1]);
     }
     //Print mass
     for(int i=0;i<print_iterations;i++){
@@ -77,16 +77,16 @@ void print_data(float **hist,int fType,double *model_parameters,int iterations,d
     //Print Phi
     for(int i=0;i<print_iterations;i++){
         for(int ir=0;ir<(printR-1);ir++){
-            fprintf(data,"%lf,",hist[2][i*printR+ir]);
+            fprintf(data,"%e,",hist[2][i*printR+ir]);
         }
-        fprintf(data,"%lf\n",hist[2][i*printR+printR-1]);
+        fprintf(data,"%e\n",hist[2][i*printR+printR-1]);
     }
     //Print Pi
     for(int i=0;i<print_iterations;i++){
         for(int ir=0;ir<(printR-1);ir++){
-            fprintf(data,"%lf,",hist[3][i*printR+ir]);
+            fprintf(data,"%e,",hist[3][i*printR+ir]);
         }
-        fprintf(data,"%lf\n",hist[3][i*printR+printR-1]);
+        fprintf(data,"%e\n",hist[3][i*printR+printR-1]);
     }
     //Print a
     for(int i=0;i<print_iterations;i++){

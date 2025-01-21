@@ -68,7 +68,7 @@ float** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,dou
     }
 
     //Calculate the metric before starting the iteration
-    #if METRIC == 1
+    #if (METRIC == 1 || METRIC == 2)
     double *Beta = malloc(sizeof(double)*nR);
     double *Beta1_2 = malloc(sizeof(double)*nR);
     for(int ir=0;ir<nR;ir++){
@@ -135,6 +135,19 @@ float** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,dou
         }
         if(is_bh) break;
 
+        #if METRIC == 2
+        //In quasi-static metric calculate the metric previous to the RK4 method
+        for(int ir=0;ir<nR;ir++){
+            Beta[ir] = 2.0*PI*r[ir]*((Pi[ir])*(Pi[ir]) + (Phi[ir])*(Phi[ir]));
+        }
+        for(int ir=0;ir<nR-1;ir++){
+            Beta1_2[ir] = 0.5*PI*(r[ir]+0.5*deltaR)*(
+                ( Pi[ir] + Pi[ir+1])*( Pi[ir] + Pi[ir+1]) +
+                (Phi[ir] +Phi[ir+1])*(Phi[ir] +Phi[ir+1]));
+        }
+        metric_iteration(1.0,1.0,Beta, Beta1_2, a, alpha, r, nR, deltaR, 0);
+        #endif
+
         //Advance Pi and Phi using RK4 
         for(int ir=0;ir<nR;ir++){
             l_n[ir] = 0.0;
@@ -151,6 +164,7 @@ float** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,dou
                  Pi_rk[ir] =  Pi[ir]+_rk[n]*deltaT*l_n[ir];
             }
             #if METRIC == 1
+            //Iterate the metric for this Runge-Kutta step
             for(int ir=0;ir<nR;ir++){
                 Beta[ir] = 2.0*PI*r[ir]*((Pi_rk[ir])*(Pi_rk[ir]) + (Phi_rk[ir])*(Phi_rk[ir]));
             }
@@ -159,7 +173,6 @@ float** iteration(double* r,double* phi,double* Phi,double* Pi,double deltaR,dou
                     ( Pi_rk[ir] + Pi_rk[ir+1])*( Pi_rk[ir] + Pi_rk[ir+1]) +
                     (Phi_rk[ir] +Phi_rk[ir+1])*(Phi_rk[ir] +Phi_rk[ir+1]));
             }
-            //First iterate the metric for this Runge-Kutta step
             metric_iteration(1.0,1.0,Beta, Beta1_2, a, alpha, r, nR, deltaR, 0);
             #endif
 

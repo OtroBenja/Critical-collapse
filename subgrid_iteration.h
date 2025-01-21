@@ -4,15 +4,17 @@
 #include "constants.h"
 #include "derivatives.h"
 
+void check_collapse(double***,int,int);
+
 //Iterate on subgrid l, once
-void subgrid_iteration(double ***all_subgrids,int grid_n, double a0, double alpha0, int count_level){
+void subgrid_iteration(double ***all_subgrids,int grid_n, int iteration){
     double  rk[4] = {1.0,2.0,2.0,1.0};
     double _rk[4] = {1.0,0.5,0.5,1.0};
-    double *rPhi = malloc(sizeof(double)*5);
-    double  *rPi = malloc(sizeof(double)*5);
+    double rPhi[5];
+    double  rPi[5];
+    //double aa_rPi[5];
     double temp1;
     double temp2;
-    //double ko_c = pow(-1,3)*EPSILON/5.;
 
     double **grid_l = all_subgrids[grid_n];
     double *r = grid_l[0];
@@ -29,16 +31,14 @@ void subgrid_iteration(double ***all_subgrids,int grid_n, double a0, double alph
     double minR = *(grid_l[9]);
     double maxR = *(grid_l[10]);
 
-    //double* Beta = malloc(sizeof(double)*nR_ex);
-    //double* Beta_p05 = malloc(sizeof(double)*nR_ex);
+    double* Beta = malloc(sizeof(double)*nR_ex);
+    double* Beta_p05 = malloc(sizeof(double)*nR_ex);
     double* Gamma = malloc(sizeof(double)*nR_ex);
     double* Epsilon = malloc(sizeof(double)*nR_ex);
-    //double *Phi_ko = malloc(sizeof(double)*nR);
-    //double  *Pi_ko = malloc(sizeof(double)*nR);
     double* Phi_rk = malloc(sizeof(double)*nR_ex);
     double*  Pi_rk = malloc(sizeof(double)*nR_ex);
-    //Beta     += GHOST_SIZE;
-    //Beta_p05 += GHOST_SIZE;
+    Beta     += GHOST_SIZE;
+    Beta_p05 += GHOST_SIZE;
     Gamma    += GHOST_SIZE;
     Epsilon  += GHOST_SIZE;
     Phi_rk   += GHOST_SIZE;
@@ -59,12 +59,12 @@ void subgrid_iteration(double ***all_subgrids,int grid_n, double a0, double alph
 
     bool   load_finer = !((bool)(*(grid_l[11])));
     bool load_coarser = !((bool)(*(grid_l[12])));
-    //if(minR==0.0) load_finer = false;
-    //if(maxR==maxR_global) load_coarser = false;
     int left_idx = - GHOST_SIZE;
     int right_idx = nR + GHOST_SIZE;
 
-    //load_ghostzones(all_subgrids,grid_l,grid_n);
+
+    check_collapse(all_subgrids,grid_n,iteration);
+    partial_metric(all_subgrids,N_LEVELS,grid_n);
     
     for(int ir=left_idx;ir<right_idx;ir++){
           Ln[ir] = 0.0;
@@ -118,11 +118,13 @@ void subgrid_iteration(double ***all_subgrids,int grid_n, double a0, double alph
             for(int ir=0;ir<5;ir++){
                 rPhi[ir] = r[nR-5 +ir]*Phi_rk[nR-5 +ir];
                  rPi[ir] = r[nR-5 +ir]* Pi_rk[nR-5 +ir];
+                //aa_rPi[ir] = r[nR-5 +ir]*alpha[nR-5 +ir]*Pi_rk[nR-5 +ir]/a[nR-5 +ir];
             }
             Kn[nR-2] = rightmid_D1(Gamma,nR-2,dR);
             Ln[nR-2] = rightmid_D1(Epsilon,nR-2,dR)/(r[nR-2]*r[nR-2]);
             Kn[nR-1] = -rightmost_D1(rPhi,4,dR)/r[nR-1];
             Ln[nR-1] = -rightmost_D1( rPi,4,dR)/r[nR-1];
+            //Ln[nR-1] = -a[nR-1]*rightmost_D1( aa_rPi,4,dR)/(r[nR-1]*alpha[nR-1]);
         }
 
         for(int ir=left_idx;ir<right_idx;ir++){
@@ -139,6 +141,8 @@ void subgrid_iteration(double ***all_subgrids,int grid_n, double a0, double alph
          Pi[ir] += _6*dT*Lsum[ir];
     }
     
+    free(Beta-GHOST_SIZE);
+    free(Beta_p05-GHOST_SIZE);
     free(Gamma-GHOST_SIZE);
     free(Epsilon-GHOST_SIZE);
     free(Phi_rk-GHOST_SIZE);
@@ -150,16 +154,4 @@ void subgrid_iteration(double ***all_subgrids,int grid_n, double a0, double alph
     free(Ksum-GHOST_SIZE);
     free(Lsum-GHOST_SIZE);
 
-    /*
-    if(grid_n>1){
-        double **grid_next = all_subgrids[grid_n-1];
-        double *phi_next = grid_next[1];
-        double *Phi_next = grid_next[2];
-        double  *Pi_next = grid_next[3];
-
-        phi_next[0] = phi[nR-1];
-        Phi_next[0] = Phi[nR-1];
-         Pi_next[0] =  Pi[nR-1];
-    }
-    */
 }

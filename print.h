@@ -14,7 +14,7 @@ void print_mass(double *MassHist,struct tm time_data,int print_iterations){
     fclose(data);
 }
 
-void print_data(float **hist,int fType,double *model_parameters,int iterations,double maxR,double deltaR,int nP,time_t totalTime){
+void print_data(float **hist,int fType,double *model_parameters,int iterations,double maxR,double deltaR,int nGrids,time_t totalTime){
     int print_iterations, printR;
     if(SAVE_MODE == 0){
         print_iterations = iterations/SAVE_ITERATION;
@@ -34,13 +34,18 @@ void print_data(float **hist,int fType,double *model_parameters,int iterations,d
     char fileName[50];
     snprintf(fileName, sizeof(fileName), "Output_%02d%02d%02d.dat", tm.tm_hour, tm.tm_min, tm.tm_sec);
     FILE* data = fopen(fileName,"w");
-    //Print all parameters 
-         if(METRIC == 0) fprintf(data,"Metric: Minkowski\n");
-    else if(METRIC == 1) fprintf(data,"Metric: Choptuik\n");
-    else if(METRIC == 2) fprintf(data,"Metric: Modified Choptuik\n");
-    else if(METRIC == 3) fprintf(data,"Metric: Choptuik Euler\n");
-    else if(METRIC == 4) fprintf(data,"Metric: Choptuik Alt\n");
-    else                 fprintf(data,"Metric: Other\n");
+    //Print all parameters
+
+    if(nGrids == 1){
+             if(METRIC == 0) fprintf(data,"Metric: Minkowski\n");
+        else if(METRIC == 1) fprintf(data,"Metric: Choptuik\n");
+        else if(METRIC == 2) fprintf(data,"Metric: Quasi-Static Choptuik\n");
+        else                 fprintf(data,"Metric: Other\n");
+    }
+    if(nGrids > 1){
+             if(SUBGRID_MODE == 0) fprintf(data,"Metric: Variable Choptuik A\n");
+        else if(SUBGRID_MODE == 1) fprintf(data,"Metric: Variable Choptuik B\n");
+    }
          if(fType == 0) fprintf(data,"Function type: Hyperbolic Tan\n");
     else if(fType == 1) fprintf(data,"Function type: Exponential\n");
     else if(fType == 2) fprintf(data,"Function type: Constant\n");
@@ -53,7 +58,7 @@ void print_data(float **hist,int fType,double *model_parameters,int iterations,d
     fprintf(data,"Final BH radius: %lf\n",bh_radius);
     fprintf(data,"Final BH mass: %lf\n",bh_mass);
     fprintf(data,"Iterations: %d\n",iterations);
-    fprintf(data,"Number of threads: %d\n",nP);
+    fprintf(data,"Number of grids: %d\n",nGrids);
     fprintf(data,"Total simulation time: %ld\n",totalTime);
     //Print R
     for(int ir=0;ir<(printR-1);ir++){

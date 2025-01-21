@@ -58,19 +58,16 @@ int main(int argc, char* argv[]){
     Phi = initial_conditions[2];
     Pi = initial_conditions[3];
     //Pass initial conditions to iteration
-    omp_set_num_threads(1);
-    if((argc>8) && atoi(argv[8])) omp_set_num_threads(atoi(argv[8]));
     time_t initTime = time(NULL);
     hist = iteration(r,phi,Phi,Pi,deltaR,maxR,iterations,SAVE_ITERATION);
     time_t finalTime = time(NULL);
-    int nP = omp_get_max_threads();
     time_t timeDelta = (finalTime-initTime);
 
     //Print simulation history to a file
     if(SAVE_MODE == 0)
-        print_data(hist,fType,model_parameters,last_iteration,maxR,deltaR,nP,timeDelta);
+        print_data(hist,fType,model_parameters,last_iteration,maxR,deltaR,1,timeDelta);
     else if(SAVE_MODE == 1){
-        print_data(hist,fType,model_parameters,last_iteration-FIRST_ITERATION,maxR,deltaR,nP,timeDelta);
+        print_data(hist,fType,model_parameters,last_iteration-FIRST_ITERATION,maxR,deltaR,1,timeDelta);
         }
     printf("Finished, total time: %lds\n", timeDelta);
 }

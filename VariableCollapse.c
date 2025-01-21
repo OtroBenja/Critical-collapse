@@ -13,11 +13,13 @@ int omp_get_thread_num(){return 1;}
 void omp_set_num_threads(){return;}
 #endif
 
+double max_a;
 double bh_mass;
 double bh_radius;
 bool is_bh;
 int last_iteration;
 double maxR_global;
+double norm_global;
 
 #include "initialize.h"
 #include "print.h"
@@ -26,24 +28,24 @@ double maxR_global;
 
 
 
-void check_collapse(double ***all_subgrids, double max_a, int iteration){
+void check_collapse(double ***all_subgrids, int grid_n, int iteration){
 
     double **grid_l;
     double *a;
     int nR;
 
-    for(int n=0;n<N_LEVELS;n++){
+    for(int ig=N_LEVELS;ig>grid_n-1;ig--){
         //Load each subgrid (in order)
-        grid_l = all_subgrids[N_LEVELS-n];
+        grid_l = all_subgrids[ig];
         a = grid_l[4];
         nR = (int)(*(grid_l[8]));
 
-        //Check if a collapse has happened if a > 1/TOLERANCE^2
+        //Check if a collapse has happened if a > 1/TOLERANCE^0.5
         for(int ir=0;ir<nR;ir++){
             if(a[ir]>max_a){
                 double *r = grid_l[0];
                 bh_radius = r[ir];
-                bh_mass = mass_ir(all_subgrids,n,ir);
+                bh_mass = mass_ir(all_subgrids,ig,ir);
                 last_iteration = iteration;
                 is_bh = true;
                 break;
@@ -51,7 +53,6 @@ void check_collapse(double ***all_subgrids, double max_a, int iteration){
         }
     }
 }
-
 
 
 double **initialize_subgrid(double fType,double *model_params,double initial_r, double final_r, double deltaR){
@@ -103,6 +104,8 @@ double **initialize_subgrid(double fType,double *model_params,double initial_r, 
     double *rf_p = malloc(sizeof(double));
     double *llim_p = malloc(sizeof(double));
     double *rlim_p = malloc(sizeof(double));
+    double *partial_a_p = malloc(sizeof(double));
+    double *partial_alpha_p = malloc(sizeof(double));
 
     dR_p[0] = deltaR;
     dT_p[0] = deltaT;
@@ -110,12 +113,11 @@ double **initialize_subgrid(double fType,double *model_params,double initial_r, 
     ri_p[0] = initial_r;
     llim_p[0] = (double)left_limit;
     rlim_p[0] = (double)right_limit;
+    partial_a_p[0] = nR_f;
+    partial_alpha_p[0] = nR_f;
 
     if(left_limit) 
         initial_field[0][left_ghost_size] = 1.0E-50;
-    //    ri_p[0] = 0.0;
-    //} else {ri_p[0] = (initial_field[0]+left_ghost_size)[0];}
-    //rf_p[0] = (initial_field[0]+left_ghost_size)[nR-1];
     rf_p[0] = final_r-deltaR;
 
     printf("nR: %d\n",nR);
@@ -124,13 +126,9 @@ double **initialize_subgrid(double fType,double *model_params,double initial_r, 
     printf("dT_pointer: %lf\n",*dT_p);
     //printf("ri: %.20lf\n",initial_r);
     //printf("rf: %.20lf\n",final_r);
-    if(left_limit) printf("Array contains left boundary\n");
-    if(right_limit) printf("Array contains right boundary\n");
-    //if((bool)(*llim_p)) printf("derreferencing works on left\n");
-    //if((bool)(*rlim_p)) printf("derreferencing works on right\n");
     printf("grid range: %e - %e\n\n",initial_field[0][left_ghost_size],(initial_field[0]+left_ghost_size)[nR-1]);
 
-    double **subgrid = malloc(sizeof(double*)*13);
+    double **subgrid = malloc(sizeof(double*)*15);
     subgrid[0]  = initial_field[0]+left_ghost_size; // r values of the grid
     subgrid[1]  = initial_field[1]+left_ghost_size; // phi values of the grid
     subgrid[2]  = initial_field[2]+left_ghost_size; // Phi values of the grid
@@ -144,11 +142,11 @@ double **initialize_subgrid(double fType,double *model_params,double initial_r, 
     subgrid[10] = rf_p;   // max r of the grid (as pointer)
     subgrid[11] = llim_p; // bool for left limit of the grid (as pointer)
     subgrid[12] = rlim_p; // bool for right limit of the grid (as pointer)
+    subgrid[13] = partial_a_p;     //Partial sum of a in the subgrid (pre-normalization)
+    subgrid[14] = partial_alpha_p; //Partial sum of alpha in the subgrid (pre-normalization)
 
     return subgrid;
 }
-
-
 
 
 int main(int argc, char* argv[]){
@@ -184,18 +182,16 @@ int main(int argc, char* argv[]){
     printf("Total iterations: %d\n",iterations);
 
     //Pass initial conditions to iteration
-    if((argc>8) && atoi(argv[8])) omp_set_num_threads(atoi(argv[8]));
     time_t initTime = time(NULL);
     hist = variable_iteration(fType, model_parameters,deltaR,maxR,iterations,SAVE_ITERATION);
     time_t finalTime = time(NULL);
-    int nP = omp_get_max_threads();
     time_t timeDelta = (finalTime-initTime);
 
     //Print simulation history to a file
     if(SAVE_MODE == 0)
-        print_data(hist,fType,model_parameters,last_iteration,maxR,deltaR,nP,timeDelta);
+        print_data(hist,fType,model_parameters,last_iteration,maxR,deltaR,N_LEVELS,timeDelta);
     else if(SAVE_MODE == 1){
-        print_data(hist,fType,model_parameters,last_iteration-FIRST_ITERATION,maxR,deltaR,nP,timeDelta);
+        print_data(hist,fType,model_parameters,last_iteration-FIRST_ITERATION,maxR,deltaR,N_LEVELS,timeDelta);
         }
     printf("Finished, total time: %lds\n", timeDelta);
 }

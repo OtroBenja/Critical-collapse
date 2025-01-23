@@ -55,8 +55,8 @@ void print_data(float **hist,int fType,double *model_parameters,int iterations,d
     fprintf(data,"d: %lf\n",d);
     fprintf(data,"R step size: %lf\n",deltaR);
     fprintf(data,"Maximum R: %lf\n",maxR);
-    fprintf(data,"Final BH radius: %lf\n",bh_radius);
-    fprintf(data,"Final BH mass: %lf\n",bh_mass);
+    fprintf(data,"Final BH radius: %e\n",bh_radius);
+    fprintf(data,"Final BH mass: %e\n",bh_mass);
     fprintf(data,"Iterations: %d\n",iterations);
     fprintf(data,"Number of grids: %d\n",nGrids);
     fprintf(data,"Total simulation time: %ld\n",totalTime);

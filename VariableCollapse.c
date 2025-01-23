@@ -43,6 +43,11 @@ void check_collapse(double ***all_subgrids, int grid_n, int iteration){
         //Check if a collapse has happened if a > 1/TOLERANCE^0.5
         for(int ir=0;ir<nR;ir++){
             if(a[ir]>max_a){
+                //If a is over the threshold, find the local maxima
+                for(;ir<nR;){
+                    if(a[ir+1]>a[ir]) ir++;
+                    else break;
+                }
                 double *r = grid_l[0];
                 bh_radius = r[ir];
                 bh_mass = mass_ir(all_subgrids,ig,ir);

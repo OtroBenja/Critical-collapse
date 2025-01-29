@@ -63,7 +63,7 @@ void subgrid_iteration(double ***all_subgrids,int grid_n, int iteration){
     int right_idx = nR + GHOST_SIZE;
 
 
-    check_collapse(all_subgrids,grid_n,iteration);
+    //check_collapse(all_subgrids,grid_n,iteration);
     partial_metric(all_subgrids,N_LEVELS,grid_n);
     
     for(int ir=left_idx;ir<right_idx;ir++){

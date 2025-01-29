@@ -177,8 +177,7 @@ float **variable_iteration(int fType,double *model_params,double deltaR,double m
         }
 
         //Check if a collapse has happened if a > 1/TOLERANCE^2
-        //check_collapse(all_subgrids, n_levels, it);
-        if(is_bh) break;
+        //if(is_bh) break;
         //printf("print2\n");
 
         //Integrate from smallest to bigger grid
